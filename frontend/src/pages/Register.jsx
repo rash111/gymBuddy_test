@@ -24,7 +24,12 @@ export default function Register() {
             toast.success("Account created!");
             navigate("/onboarding");
         } catch (e) {
-            toast.error(formatErr(e));
+            const msg = formatErr(e);
+            if (e?.code === "EMAIL_CONFIRMATION_REQUIRED") {
+                toast.info(msg, { duration: 10000 });
+            } else {
+                toast.error(msg, { duration: 8000 });
+            }
         } finally {
             setLoading(false);
         }
