@@ -1,0 +1,121 @@
+{
+  "theme": "dark",
+  "archetype": "2 (Performance Pro)",
+  "vibe": "Energetic, tactical, command-center, premium athletic, subtly Indian context.",
+  "typography": {
+    "fonts_to_import": [
+      "@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,400;0,600;0,700;0,800;0,900&family=Inter:wght@400;500;600;700&display=swap');"
+    ],
+    "headings_font": "Barlow Condensed, sans-serif",
+    "body_font": "Inter, sans-serif",
+    "sizes": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tighter uppercase font-black",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl tracking-tight uppercase font-bold",
+      "h3": "text-xl sm:text-2xl tracking-tight font-bold",
+      "h4": "text-lg sm:text-xl font-semibold",
+      "body": "text-base leading-relaxed font-normal",
+      "small": "text-sm font-medium",
+      "overline": "text-xs uppercase tracking-[0.2em] font-bold"
+    }
+  },
+  "colors": {
+    "background": {
+      "primary": "bg-zinc-950",
+      "secondary": "bg-zinc-900",
+      "tertiary": "bg-zinc-800",
+      "glass": "bg-zinc-900/80 backdrop-blur-xl"
+    },
+    "text": {
+      "primary": "text-white",
+      "secondary": "text-zinc-400",
+      "accent": "text-[#FF5722]",
+      "muted": "text-zinc-500",
+      "inverse": "text-zinc-950"
+    },
+    "accent": {
+      "primary": "#FF5722",
+      "primary_hover": "#E64A19",
+      "secondary": "#00E5FF",
+      "success": "#10B981",
+      "warning": "#F59E0B",
+      "danger": "#EF4444"
+    },
+    "border": {
+      "subtle": "border-zinc-800",
+      "medium": "border-zinc-700",
+      "active": "border-[#FF5722]/50"
+    }
+  },
+  "spacing_and_layout": {
+    "padding_generous": "p-6 sm:p-8",
+    "gap_standard": "gap-4 sm:gap-6",
+    "grid_bento": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4",
+    "container": "w-full max-w-md mx-auto md:max-w-2xl lg:max-w-5xl",
+    "mobile_first_nav_padding": "pb-24 lg:pb-8"
+  },
+  "surface_strategies": {
+    "cards": "bg-zinc-900 border border-zinc-800 rounded-xl shadow-sm",
+    "cards_hover": "hover:border-zinc-700 hover:shadow-md transition-all duration-200",
+    "glass_header": "backdrop-blur-xl bg-zinc-950/80 border-b border-white/5",
+    "glass_nav_bottom": "backdrop-blur-xl bg-zinc-900/90 border-t border-white/5",
+    "tactical_buttons": "bg-[#FF5722] text-white rounded-lg font-semibold tracking-wide uppercase hover:bg-[#E64A19] transition-all",
+    "secondary_buttons": "bg-zinc-800 text-white rounded-lg font-medium hover:bg-zinc-700 transition-all",
+    "outline_buttons": "bg-transparent border border-zinc-700 text-white rounded-lg font-medium hover:bg-zinc-800 hover:border-zinc-600 transition-all",
+    "active_state": "ring-2 ring-[#FF5722]/50 ring-offset-2 ring-offset-zinc-950"
+  },
+  "components": {
+    "strategy": "Shadcn UI heavily customized with dark tactical themes. No soft shadows. Use sharp 1px borders and slight rounded corners (rounded-lg or rounded-xl).",
+    "nav_bar": "Fixed bottom navigation for mobile viewports (PWA style). Ensure main content has bottom padding so it is not obscured.",
+    "charts": "Recharts with #FF5722 (marigold) and #00E5FF (cyan) for line/bar charts. Remove grid lines or make them extremely faint (stroke-zinc-800) for a cleaner command-center look.",
+    "tabs": "Tactical pill-shaped tabs. Active state should have a subtle background (bg-zinc-800) and text color (#FF5722).",
+    "inputs": "bg-zinc-950 border border-zinc-800 focus:border-[#FF5722] focus:ring-1 focus:ring-[#FF5722] text-white rounded-lg"
+  },
+  "icons": {
+    "library": "lucide-react",
+    "style": "Clean, minimal, mostly stroke-2. Use #FF5722 for active/primary icons, zinc-400 for inactive."
+  },
+  "media": {
+    "images": {
+      "onboarding_hero_1": {
+        "url": "https://images.pexels.com/photos/6514823/pexels-photo-6514823.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Indian man performing intense workout with battle ropes"
+      },
+      "onboarding_hero_2": {
+        "url": "https://images.pexels.com/photos/13534122/pexels-photo-13534122.jpeg",
+        "description": "Indian woman powerlifting in the gym"
+      },
+      "workout_placeholder": {
+        "url": "https://images.unsplash.com/photo-1682241367368-6387d5d4921a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MTN8MHwxfHNlYXJjaHwxfHxpbmRpYW4lMjBtYW4lMjB3b3JraW5nJTIwb3V0JTIwZ3ltfGVufDB8fHx8MTc4MjI1MjA0MXww&ixlib=rb-4.1.0&q=85",
+        "description": "Man holding a barbell"
+      },
+      "diet_placeholder_1": {
+        "url": "https://images.pexels.com/photos/35267281/pexels-photo-35267281.jpeg",
+        "description": "Indian meal bowl"
+      },
+      "diet_placeholder_2": {
+        "url": "https://images.pexels.com/photos/9345667/pexels-photo-9345667.jpeg",
+        "description": "Indian thali with bowls"
+      },
+      "ai_coach_avatar": {
+        "url": "https://images.unsplash.com/photo-1531837763904-5d3cb2632ea3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODh8MHwxfHNlYXJjaHwzfHxyb2JvdCUyMGF2YXRhciUyMGdsb3dpbmd8ZW58MHx8fHwxNzgyMTk3MTc3fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Futuristic robot avatar"
+      }
+    }
+  },
+  "accessibility": {
+    "contrast": "Ensure text over primary orange button is white. Avoid pure black text on dark grey. Meet WCAG AA for all small text.",
+    "focus": "All interactive elements MUST have focus visibility. E.g., focus:ring-2 focus:ring-[#FF5722] focus:ring-offset-2 focus:ring-offset-zinc-950",
+    "testing": "All interactive and key informational elements MUST include a data-testid attribute in kebab-case."
+  },
+  "instructions_to_main_agent": [
+    "This is a mobile-first app layout. Structure the main application layout with a fixed bottom navigation bar on mobile screens. Ensure the main content area has padding-bottom so the navbar doesn't cover content.",
+    "Do NOT use generic fitness gradients (purple/green). Follow the 'Performance Pro' archetype. Use the deep Obsidian (zinc-950) base with Electric Marigold (#FF5722) as the primary energetic trigger.",
+    "Add the provided fonts_to_import string to the main css file (e.g., index.css). Use 'Barlow Condensed' for heavy impact headings (H1, H2) with uppercase styling where appropriate for an 'athletic' feel. Use 'Inter' for all body text.",
+    "Configure tailwind.config.js to include these font families: fontFamily: { sans: ['Inter', 'sans-serif'], condensed: ['Barlow Condensed', 'sans-serif'] }.",
+    "All cards must have a 1px border of 'border-zinc-800' with a 'bg-zinc-900' background. Do not use soft box-shadows; rely on borders for separation.",
+    "The AI Coach interface should use the ai_coach_avatar image and subtle Neon Cyan (#00E5FF) accents for AI-generated messages to differentiate them from regular app UI.",
+    "In the Indian Diet planner or AI Food scanner, use the provided diet_placeholder images. Make the layout bento-box style for macro tracking.",
+    "Always apply 'data-testid' to all buttons, inputs, tabs, and significant components for testing.",
+    "Do not use transparent headers without a backdrop-blur. Make sticky top-headers and bottom-navs distinct from the background by using glassmorphism (bg-zinc-950/80 backdrop-blur-xl)."
+  ]
+}
