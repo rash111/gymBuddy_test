@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import api, { getToken, API } from "../lib/api";
+import api from "../lib/api";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -151,7 +151,7 @@ export default function Progress() {
                     </Button>
                     <div className="grid grid-cols-3 gap-2">
                         {photos.map((p) => (
-                            <PhotoTile key={p.id} path={p.storage_path} />
+                            <PhotoTile key={p.id} url={p.signed_url} />
                         ))}
                     </div>
                 </TabsContent>
@@ -160,14 +160,7 @@ export default function Progress() {
     );
 }
 
-function PhotoTile({ path }) {
-    const [url, setUrl] = useState(null);
-    useEffect(() => {
-        const token = getToken();
-        api.get(`/files/${path}`, { responseType: "blob" }).then((r) => setUrl(URL.createObjectURL(r.data))).catch(() => {});
-        return () => url && URL.revokeObjectURL(url);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [path]);
+function PhotoTile({ url }) {
     return (
         <div className="aspect-square bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
             {url ? <img alt="progress" src={url} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-zinc-700"><Camera className="w-6 h-6" /></div>}
