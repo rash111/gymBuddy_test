@@ -440,6 +440,96 @@ agent_communication:
       
       The implemented code appears correct based on file review, but runtime testing
       is blocked by Supabase API failures.
+  - agent: "testing"
+    message: |
+      🔴 CRITICAL INFRASTRUCTURE FAILURE - RE-TEST BLOCKED
+      
+      **TEST RUN 2 RESULTS (2026-07-01):**
+      Attempted comprehensive re-test of all 9 test scenarios. ALL PAGES STUCK ON "Loading..." - NO UI ELEMENTS RENDERED.
+      
+      **INFRASTRUCTURE ISSUE:**
+      - Supabase API calls failing with net::ERR_ABORTED
+      - ALL pages (Diet, Weekly Plan, Profile, Exercises, Progress, Food Scanner, Coach) stuck on "Loading..." spinner
+      - NO BackButton, Reset button, status badges, or ANY UI elements rendered
+      - Safety timeouts (6s) NOT working - pages hang indefinitely
+      - Backend API NOT being used (app uses Supabase directly via api.js shim)
+      
+      **DETAILED FINDINGS:**
+      
+      ✅ TEST 9 PASSED (ONLY WORKING TEST):
+      - Dashboard Profile button next to streak pill: WORKING
+      - Profile removed from bottom nav: WORKING
+      - Bottom nav has exactly 5 items: WORKING
+      
+      ❌ TEST 1 FAILED - Back button:
+      - /workout: PASS (back button found)
+      - /workout/weekly: PASS (back button found)
+      - /exercises, /progress, /diet, /food-scanner, /coach, /profile: ALL FAIL (pages stuck on "Loading...", no back button rendered)
+      
+      ❌ TEST 2 FAILED - Diet Reset button:
+      - Page stuck on "Loading..." for 8+ seconds
+      - Reset button NOT found (never rendered)
+      - Cannot test reset functionality
+      
+      ❌ TEST 3 NOT TESTED - Food Scanner navigation:
+      - Page stuck on "Loading..."
+      
+      ❌ TEST 4 FAILED - Workout Start/Restart states:
+      - Initial state unexpected (may have existing session)
+      - Cannot verify Start button, Completed badge, or Restart/Do More buttons
+      
+      ❌ TEST 5 FAILED - Weekly Plan status badges:
+      - Page stuck on "Loading..."
+      - NO day cards found (0/7)
+      - Status badges NOT rendered
+      
+      ❌ TEST 6 FAILED - AI Re-gen:
+      - Page stuck on "Loading..."
+      - AI Re-gen button NOT found
+      
+      ❌ TEST 7 FAILED - Profile Sign Out:
+      - Page stuck on "Loading..."
+      - Header profile button NOT found (despite working in TEST 9)
+      - Logout button NOT found
+      
+      ❌ TEST 8 FAILED - Calories Burnt card:
+      - Card NOT visible on dashboard
+      - Cannot verify conditional rendering
+      
+      **ROOT CAUSE:**
+      The app architecture uses Supabase DIRECTLY (not the FastAPI backend). The /app/frontend/src/lib/api.js file is a shim that translates axios-style calls to Supabase queries. ALL Supabase API calls are failing with net::ERR_ABORTED, which suggests:
+      1. Supabase RLS (Row Level Security) policies blocking queries
+      2. Supabase authentication issues
+      3. Network/CORS issues with Supabase
+      4. Supabase project configuration issues
+      
+      **CONSOLE ERRORS:**
+      - REQUEST FAILED: https://ieflizrmhydqnjdpqyti.supabase.co/rest/v1/meal_logs?... - net::ERR_ABORTED
+      - Multiple ProtectedRoute loading state transitions
+      - Auth safety timeout triggered: "[Auth] safety timeout — forcing loading=false"
+      
+      **CRITICAL BLOCKERS:**
+      1. Pages never exit "Loading..." state despite 6s safety timeout
+      2. Safety timeout in Diet.jsx, TodayWorkout.jsx, WeeklyPlan.jsx NOT working
+      3. Supabase queries failing silently - no error UI shown to user
+      4. BackButton component NOT being rendered on any page (except /workout, /workout/weekly)
+      
+      **CODE REVIEW CONFIRMS:**
+      - All UI components (BackButton, Reset button, status badges, etc.) are correctly implemented in code
+      - Safety timeouts are implemented in Diet.jsx (line 41-44), TodayWorkout.jsx (line 32-35)
+      - But timeouts are NOT triggering or pages are re-rendering and resetting the timeout
+      
+      **RECOMMENDATION:**
+      1. URGENT: Fix Supabase connectivity/RLS issues - this is blocking ALL testing
+      2. Add error boundaries and fallback UI when Supabase calls fail
+      3. Verify safety timeouts are actually working (may need to check React component lifecycle)
+      4. Consider adding a "Supabase health check" on app load to detect connectivity issues early
+      5. Add better error logging/toasts when API calls fail
+      
+      **TESTING STATUS:**
+      - 1/9 tests passed (TEST 9 only)
+      - 8/9 tests blocked by infrastructure failure
+      - Cannot proceed with testing until Supabase connectivity is restored
 
 agent_communication:
   - agent: "main"

@@ -18,11 +18,31 @@ export default function Diet() {
 
     const load = async () => {
         try {
-            const [p, m] = await Promise.all([api.get("/diet-plan"), api.get("/meals?days=1")]);
-            setPlan(p.data); setMeals(m.data);
-        } catch { setPlan(false); }
+            // Load in parallel but don't fail everything if just meals errors.
+            const [pRes, mRes] = await Promise.allSettled([
+                api.get("/diet-plan"),
+                api.get("/meals?days=1"),
+            ]);
+            if (pRes.status === "fulfilled") {
+                setPlan(pRes.value.data);
+            } else {
+                console.warn("[Diet] diet-plan failed:", pRes.reason);
+                setPlan(false);
+            }
+            setMeals(mRes.status === "fulfilled" ? (mRes.value.data || []) : []);
+        } catch (e) {
+            console.warn("[Diet] load failed:", e);
+            setPlan(false);
+        }
     };
-    useEffect(() => { load(); }, []);
+    useEffect(() => {
+        load();
+        // Safety timeout — never leave the user stuck on "Loading…"
+        const t = setTimeout(() => {
+            setPlan((cur) => (cur === null ? false : cur));
+        }, 6000);
+        return () => clearTimeout(t);
+    }, []);
 
     const resetTodaysPlate = async () => {
         setResetting(true);

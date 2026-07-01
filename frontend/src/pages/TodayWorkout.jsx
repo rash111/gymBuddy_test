@@ -28,6 +28,11 @@ export default function TodayWorkout() {
     useEffect(() => {
         api.get("/workout-plan").then((r) => setPlan(r.data)).catch(() => setPlan(false));
         loadTodaySessions();
+        // Safety timeout — never leave the user stuck on "Loading…"
+        const t = setTimeout(() => {
+            setPlan((cur) => (cur === null ? false : cur));
+        }, 6000);
+        return () => clearTimeout(t);
     }, []);
 
     if (plan === null) return <div className="p-6 text-zinc-400">Loading…</div>;

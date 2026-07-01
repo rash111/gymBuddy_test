@@ -4,6 +4,50 @@
 
 import { supabase } from "./supabase";
 
+// ---- Fallback plan generators (used if Supabase edge functions fail) ----
+function fallbackWorkoutDays() {
+    return [
+        { day: "Monday", focus: "Push", exercises: [
+            { exercise_id: "ex_bench", name: "Barbell Bench Press", sets: 4, reps: "8-10", rest_sec: 90 },
+            { exercise_id: "ex_ohp", name: "Overhead Press", sets: 3, reps: "8-10", rest_sec: 90 },
+            { exercise_id: "ex_pushup", name: "Push-Up", sets: 3, reps: "12-15", rest_sec: 60 },
+        ]},
+        { day: "Tuesday", focus: "Pull", exercises: [
+            { exercise_id: "ex_deadlift", name: "Deadlift", sets: 4, reps: "5-6", rest_sec: 120 },
+            { exercise_id: "ex_row", name: "Barbell Row", sets: 4, reps: "8-10", rest_sec: 90 },
+            { exercise_id: "ex_pullup", name: "Pull-Up", sets: 3, reps: "6-10", rest_sec: 90 },
+        ]},
+        { day: "Wednesday", focus: "Legs", exercises: [
+            { exercise_id: "ex_bsquat", name: "Barbell Back Squat", sets: 4, reps: "8-10", rest_sec: 120 },
+            { exercise_id: "ex_legpress", name: "Leg Press", sets: 3, reps: "10-12", rest_sec: 90 },
+            { exercise_id: "ex_lunge", name: "Walking Lunge", sets: 3, reps: "12-15", rest_sec: 60 },
+        ]},
+        { day: "Thursday", focus: "Rest", exercises: [] },
+        { day: "Friday", focus: "Full Body", exercises: [
+            { exercise_id: "ex_squat", name: "Bodyweight Squat", sets: 3, reps: "15", rest_sec: 45 },
+            { exercise_id: "ex_pushup", name: "Push-Up", sets: 3, reps: "12", rest_sec: 45 },
+            { exercise_id: "ex_plank", name: "Plank", sets: 3, reps: "45s", rest_sec: 45 },
+        ]},
+        { day: "Saturday", focus: "Core + Cardio", exercises: [
+            { exercise_id: "ex_plank", name: "Plank", sets: 4, reps: "60s", rest_sec: 45 },
+            { exercise_id: "ex_burpee", name: "Burpee", sets: 4, reps: "12", rest_sec: 45 },
+        ]},
+        { day: "Sunday", focus: "Rest", exercises: [] },
+    ];
+}
+function fallbackDietPlan(profile) {
+    const veg = ["veg", "vegan", "eggetarian"].includes(profile?.diet_preference);
+    return {
+        daily_calories: 2200, protein_g: 140, carbs_g: 240, fats_g: 70,
+        meals: [
+            { meal_type: "Breakfast", name: "Moong Dal Cheela + Curd", calories: 450, protein_g: 22, carbs_g: 55, fats_g: 12, items: ["2 cheelas", "1 bowl curd"] },
+            { meal_type: "Lunch", name: veg ? "Rajma Chawal + Salad" : "Chicken Curry + Roti", calories: 650, protein_g: 35, carbs_g: 80, fats_g: 18, items: veg ? ["1 bowl rajma", "1 cup rice"] : ["150g chicken curry", "3 rotis"] },
+            { meal_type: "Snack", name: "Sprouts Chaat + Buttermilk", calories: 300, protein_g: 18, carbs_g: 35, fats_g: 6, items: ["1 bowl sprouts", "1 glass buttermilk"] },
+            { meal_type: "Dinner", name: veg ? "Paneer Bhurji + 2 Rotis" : "Grilled Fish + Veg", calories: 600, protein_g: 38, carbs_g: 50, fats_g: 22, items: veg ? ["120g paneer", "2 rotis"] : ["150g fish", "Mixed veg"] },
+        ],
+    };
+}
+
 const requireUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw { response: { data: { detail: "Not authenticated" } } };
@@ -36,8 +80,34 @@ const handlers = {
     async submitOnboarding(body) {
         const user = await requireUser();
         await supabase.from("profiles").update({ fitness_profile: body, onboarded: true }).eq("id", user.id);
-        const { data: plan } = await supabase.functions.invoke("generate-workout-plan", { body: { profile: body } });
-        const { data: diet } = await supabase.functions.invoke("generate-diet-plan", { body: { profile: body } });
+
+        // Try edge functions first; fall back to client-side creation so we NEVER
+        // leave the user without an active workout/diet plan.
+        let plan = null, diet = null;
+        try {
+            const { data, error } = await supabase.functions.invoke("generate-workout-plan", { body: { profile: body } });
+            if (!error) plan = data;
+        } catch (e) { /* ignore, use fallback */ }
+        try {
+            const { data, error } = await supabase.functions.invoke("generate-diet-plan", { body: { profile: body } });
+            if (!error) diet = data;
+        } catch (e) { /* ignore, use fallback */ }
+
+        if (!plan) {
+            // deactivate any old, then insert fallback
+            await supabase.from("workout_plans").update({ active: false }).eq("user_id", user.id).eq("active", true);
+            const { data: saved } = await supabase.from("workout_plans")
+                .insert({ user_id: user.id, days: fallbackWorkoutDays(), active: true })
+                .select().single();
+            plan = saved;
+        }
+        if (!diet) {
+            await supabase.from("diet_plans").update({ active: false }).eq("user_id", user.id).eq("active", true);
+            const { data: saved } = await supabase.from("diet_plans")
+                .insert({ user_id: user.id, ...fallbackDietPlan(body), active: true })
+                .select().single();
+            diet = saved;
+        }
         return { profile: body, workout_plan: plan, diet_plan: diet };
     },
     // ---- WORKOUT PLAN ----
@@ -51,9 +121,22 @@ const handlers = {
         const p = await this.getProfile();
         const fitnessProfile = p?.profile || p?.fitness_profile || null;
         if (!fitnessProfile) throw { response: { data: { detail: "Complete onboarding first" } } };
-        const { data, error } = await supabase.functions.invoke("generate-workout-plan", { body: { profile: fitnessProfile } });
+        const user = await requireUser();
+        // Try edge function
+        try {
+            const { data, error } = await supabase.functions.invoke("generate-workout-plan", { body: { profile: fitnessProfile } });
+            if (!error && data) return data;
+            console.warn("[regenWorkoutPlan] edge function error, using fallback:", error?.message);
+        } catch (e) {
+            console.warn("[regenWorkoutPlan] edge function threw, using fallback:", e?.message);
+        }
+        // Fallback: deactivate existing and insert a fresh template
+        await supabase.from("workout_plans").update({ active: false }).eq("user_id", user.id).eq("active", true);
+        const { data: saved, error } = await supabase.from("workout_plans")
+            .insert({ user_id: user.id, days: fallbackWorkoutDays(), active: true })
+            .select().single();
         if (error) throw { response: { data: { detail: error.message || "Regenerate failed" } } };
-        return data;
+        return saved;
     },
     // ---- EXERCISES ----
     async getExercises() {
@@ -152,9 +235,20 @@ const handlers = {
         const p = await this.getProfile();
         const fitnessProfile = p?.profile || p?.fitness_profile || null;
         if (!fitnessProfile) throw { response: { data: { detail: "Complete onboarding first" } } };
-        const { data, error } = await supabase.functions.invoke("generate-diet-plan", { body: { profile: fitnessProfile } });
+        const user = await requireUser();
+        try {
+            const { data, error } = await supabase.functions.invoke("generate-diet-plan", { body: { profile: fitnessProfile } });
+            if (!error && data) return data;
+            console.warn("[regenDietPlan] edge function error, using fallback:", error?.message);
+        } catch (e) {
+            console.warn("[regenDietPlan] edge function threw, using fallback:", e?.message);
+        }
+        await supabase.from("diet_plans").update({ active: false }).eq("user_id", user.id).eq("active", true);
+        const { data: saved, error } = await supabase.from("diet_plans")
+            .insert({ user_id: user.id, ...fallbackDietPlan(fitnessProfile), active: true })
+            .select().single();
         if (error) throw { response: { data: { detail: error.message || "Regenerate failed" } } };
-        return data;
+        return saved;
     },
     async logMeal(body) {
         const user = await requireUser();
