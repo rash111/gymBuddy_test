@@ -14,19 +14,36 @@ export default function Login() {
     const { login } = useAuth();
     const navigate = useNavigate();
 
-    const submit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        try {
-            const u = await login(email, password);
-            toast.success("Welcome back!");
-            navigate(u.onboarded ? "/dashboard" : "/onboarding");
-        } catch (e) {
-            toast.error(formatErr(e));
-        } finally {
-            setLoading(false);
-        }
-    };
+    // const submit = async (e) => {
+    //     e.preventDefault();
+    //     setLoading(true);
+    //     try {
+    //         const u = await login(email, password);
+    //         toast.success("Welcome back!");
+    //         navigate(u.onboarded ? "/dashboard" : "/onboarding");
+    //     } catch (e) {
+    //         toast.error(formatErr(e));
+    //     } finally {
+    //         setLoading(false);
+    //     }
+    // };
+const submit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+        await login(email, password);
+
+        toast.success("Welcome back!");
+
+        // Let RootRedirect decide where to go
+        navigate("/");
+    } catch (e) {
+        toast.error(formatErr(e));
+    } finally {
+        setLoading(false);
+    }
+};
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white flex items-center px-6 py-10">
