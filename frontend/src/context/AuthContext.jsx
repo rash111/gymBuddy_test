@@ -91,13 +91,19 @@ export function AuthProvider({ children }) {
         };
     }, []);
 
-    const login = async (email, password) => {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw { response: { data: { detail: error.message } } };
-        await fetchProfile(data.user);
-        const { data: prof } = await supabase.from("profiles").select("*").eq("id", data.user.id).maybeSingle();
-        return { ...data.user, onboarded: !!prof?.onboarded, name: prof?.name };
-    };
+   const login = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+    });
+
+    if (error) {
+        throw { response: { data: { detail: error.message } } };
+    }
+
+    // onAuthStateChange will update the user state.
+    return data.user;
+};
 
     const register = async (name, email, password) => {
         const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { name } } });
