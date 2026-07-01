@@ -1,12 +1,14 @@
 import React, { useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { Button } from "../components/ui/button";
-import { Camera, ChevronLeft, Plus, Loader2 } from "lucide-react";
+import BackButton from "../components/BackButton";
+import { Camera, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function FoodScanner() {
     const ref = useRef();
+    const navigate = useNavigate();
     const [scanning, setScanning] = useState(false);
     const [result, setResult] = useState(null);
     const [preview, setPreview] = useState(null);
@@ -32,14 +34,14 @@ export default function FoodScanner() {
                 notes: result.notes,
             });
             toast.success("Logged to your diary!");
+            // Navigate to Diet plan screen so user can see their updated plate
+            setTimeout(() => navigate("/diet"), 400);
         } catch { toast.error("Failed"); }
     };
 
     return (
         <div className="px-6 pt-10 pb-6">
-            <Link to="/diet" className="inline-flex items-center gap-1 text-zinc-400 hover:text-white mb-2 text-sm" data-testid="back-to-diet">
-                <ChevronLeft className="w-4 h-4" /> Diet
-            </Link>
+            <BackButton to="/diet" label="Diet" />
             <span className="text-xs uppercase tracking-[0.3em] text-[#FF5722] font-bold">AI Powered</span>
             <h1 className="brand-heading text-4xl mt-1 mb-1">Food Scanner</h1>
             <p className="text-zinc-400 text-sm mb-6">Snap any Indian dish for instant nutrition estimates.</p>

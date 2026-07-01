@@ -2,13 +2,19 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../lib/api";
 import { Button } from "../components/ui/button";
-import { Camera, RefreshCw, Apple, Plus } from "lucide-react";
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "../components/ui/alert-dialog";
+import BackButton from "../components/BackButton";
+import { Camera, RotateCcw, Apple, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Diet() {
     const [plan, setPlan] = useState(null);
     const [meals, setMeals] = useState([]);
-    const [regen, setRegen] = useState(false);
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [resetting, setResetting] = useState(false);
 
     const load = async () => {
         try {
@@ -18,10 +24,18 @@ export default function Diet() {
     };
     useEffect(() => { load(); }, []);
 
-    const regenerate = async () => {
-        setRegen(true);
-        try { const { data } = await api.post("/diet-plan/regenerate"); setPlan(data); toast.success("Diet refreshed!"); }
-        catch { toast.error("Failed"); } finally { setRegen(false); }
+    const resetTodaysPlate = async () => {
+        setResetting(true);
+        try {
+            await api.post("/meals/reset-today");
+            toast.success("Today's plate has been reset.");
+            setConfirmOpen(false);
+            await load();
+        } catch {
+            toast.error("Failed to reset today's plate");
+        } finally {
+            setResetting(false);
+        }
     };
 
     const logMealFromPlan = async (m) => {
@@ -37,17 +51,24 @@ export default function Diet() {
     const todayF = meals.reduce((a, m) => a + (m.fats_g || 0), 0);
 
     if (plan === null) return <div className="p-6 text-zinc-400">Loading diet…</div>;
-    if (!plan) return <div className="p-6">No plan. Complete onboarding.</div>;
+    if (!plan) return (
+        <div className="p-6">
+            <BackButton to="/dashboard" />
+            No plan. Complete onboarding.
+        </div>
+    );
 
     return (
         <div className="px-6 pt-10 pb-6">
-            <div className="flex justify-between items-start mb-4">
-                <div>
+            <BackButton to="/dashboard" />
+            <div className="flex justify-between items-start mb-4 gap-3">
+                <div className="min-w-0">
                     <span className="text-xs uppercase tracking-[0.3em] text-[#FF5722] font-bold">Indian Diet</span>
                     <h1 className="brand-heading text-4xl mt-1">Today's Plate</h1>
                 </div>
-                <Button data-testid="regen-diet" onClick={regenerate} disabled={regen} variant="outline" size="sm" className="bg-transparent border-zinc-700 hover:bg-zinc-900">
-                    <RefreshCw className={`w-4 h-4 ${regen ? "animate-spin" : ""}`} />
+                <Button data-testid="reset-diet-btn" onClick={() => setConfirmOpen(true)} variant="outline" size="sm"
+                    className="shrink-0 bg-transparent border-zinc-700 hover:bg-zinc-900 h-9 mt-1">
+                    <RotateCcw className="w-4 h-4 mr-1.5" /> Reset
                 </Button>
             </div>
 
@@ -95,7 +116,7 @@ export default function Diet() {
             </div>
 
             <h3 className="brand-heading text-xl mb-3">Logged Today</h3>
-            {meals.length === 0 ? <p className="text-zinc-500 text-sm">Nothing logged yet.</p> : (
+            {meals.length === 0 ? <p className="text-zinc-500 text-sm" data-testid="no-meals-logged">Nothing logged yet.</p> : (
                 <div className="space-y-2">
                     {meals.map((m, i) => (
                         <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 flex justify-between text-sm">
@@ -108,6 +129,25 @@ export default function Diet() {
                     ))}
                 </div>
             )}
+
+            <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+                <AlertDialogContent data-testid="reset-confirm-dialog" className="bg-zinc-900 border-zinc-800 text-white">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="brand-heading text-2xl">Reset today's plate?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-zinc-400">
+                            This will remove all meals you've logged today. Your macros for today will go back to zero.
+                            This action cannot be undone. Are you sure you want to reset today's plate?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel data-testid="reset-cancel-btn" className="bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-white">Cancel</AlertDialogCancel>
+                        <AlertDialogAction data-testid="reset-confirm-btn" onClick={resetTodaysPlate} disabled={resetting}
+                            className="bg-[#FF5722] hover:bg-[#E64A19] text-white">
+                            {resetting ? "Resetting…" : "Yes, reset"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

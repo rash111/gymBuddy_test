@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import api from "../lib/api";
+import BackButton from "../components/BackButton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
@@ -54,6 +55,7 @@ export default function Progress() {
 
     return (
         <div className="px-6 pt-10 pb-6">
+            <BackButton to="/dashboard" />
             <h1 className="brand-heading text-4xl mb-1">Progress</h1>
             <p className="text-zinc-400 text-sm mb-6">Your transformation, by the numbers</p>
 

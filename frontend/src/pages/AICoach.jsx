@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import api from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import BackButton from "../components/BackButton";
 import { Send, Bot, User as UserIcon, Loader2 } from "lucide-react";
 
 export default function AICoach() {
@@ -34,6 +35,7 @@ export default function AICoach() {
 
     return (
         <div className="px-6 pt-10 pb-24 min-h-screen flex flex-col">
+            <BackButton to="/dashboard" />
             <div className="flex items-center gap-3 mb-2">
                 <div className="w-10 h-10 rounded-full bg-[#FF5722] flex items-center justify-center">
                     <Bot className="w-5 h-5 text-white" />

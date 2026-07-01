@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import api from "../lib/api";
 import { Input } from "../components/ui/input";
+import BackButton from "../components/BackButton";
 import { Search } from "lucide-react";
 
 export default function ExerciseLibrary() {
@@ -18,6 +19,7 @@ export default function ExerciseLibrary() {
 
     return (
         <div className="px-6 pt-10 pb-6">
+            <BackButton />
             <h1 className="brand-heading text-4xl mb-1">Exercise Library</h1>
             <p className="text-zinc-400 text-sm mb-6">{exs.length} exercises with form videos</p>
             <div className="relative mb-5">

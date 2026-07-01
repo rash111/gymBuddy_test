@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, Dumbbell, BarChart3, Apple, Bot, User } from "lucide-react";
+import { Home, Dumbbell, BarChart3, Apple, Bot } from "lucide-react";
 
 const items = [
     { to: "/dashboard", label: "Home", icon: Home, tid: "nav-home" },
@@ -8,7 +8,6 @@ const items = [
     { to: "/progress", label: "Progress", icon: BarChart3, tid: "nav-progress" },
     { to: "/diet", label: "Diet", icon: Apple, tid: "nav-diet" },
     { to: "/coach", label: "Coach", icon: Bot, tid: "nav-coach" },
-    { to: "/profile", label: "Profile", icon: User, tid: "nav-profile" },
 ];
 
 export default function Layout({ children }) {

@@ -1,6 +1,7 @@
 import React from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
+import BackButton from "../components/BackButton";
 import { Flame, Trophy, Clock, Dumbbell } from "lucide-react";
 
 export default function WorkoutSummary() {
@@ -19,7 +20,8 @@ export default function WorkoutSummary() {
     const totalVolume = session.exercises.reduce((a, e) => a + e.sets.reduce((b, s) => b + s.weight_kg * s.reps, 0), 0);
 
     return (
-        <div className="px-6 pt-16 pb-8">
+        <div className="px-6 pt-10 pb-8">
+            <BackButton to="/dashboard" />
             <div className="flex justify-center mb-4">
                 <div className="w-20 h-20 rounded-full bg-[#FF5722]/10 border-2 border-[#FF5722] flex items-center justify-center">
                     <Trophy className="w-10 h-10 text-[#FF5722]" />

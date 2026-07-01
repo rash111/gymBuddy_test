@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import BackButton from "../components/BackButton";
 import { Check, Plus, Minus, Timer, Flag } from "lucide-react";
 import { toast } from "sonner";
 
@@ -74,6 +75,7 @@ export default function WorkoutSession() {
 
     return (
         <div className="px-6 pt-10 pb-32">
+            <BackButton to="/workout" />
             <div className="flex items-center justify-between mb-4">
                 <div>
                     <span className="text-xs uppercase tracking-[0.3em] text-[#FF5722] font-bold">Live Session</span>

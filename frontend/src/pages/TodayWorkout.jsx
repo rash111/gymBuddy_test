@@ -2,32 +2,89 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { Button } from "../components/ui/button";
-import { Play, ChevronRight, Calendar } from "lucide-react";
+import {
+    AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+    AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "../components/ui/alert-dialog";
+import BackButton from "../components/BackButton";
+import { Play, ChevronRight, Calendar, RotateCcw, Plus, CheckCircle2 } from "lucide-react";
+import { toast } from "sonner";
 
 export default function TodayWorkout() {
     const [plan, setPlan] = useState(null);
+    const [todaySessions, setTodaySessions] = useState([]);
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [resetting, setResetting] = useState(false);
     const navigate = useNavigate();
     const todayIdx = new Date().getDay(); // Sun=0..Sat=6
 
+    const loadTodaySessions = async () => {
+        try {
+            const { data } = await api.get("/workout-sessions/today");
+            setTodaySessions(data || []);
+        } catch { setTodaySessions([]); }
+    };
+
     useEffect(() => {
         api.get("/workout-plan").then((r) => setPlan(r.data)).catch(() => setPlan(false));
+        loadTodaySessions();
     }, []);
 
     if (plan === null) return <div className="p-6 text-zinc-400">Loading…</div>;
-    if (!plan) return <div className="p-6">No plan yet. <Link to="/onboarding" className="text-[#FF5722]">Complete onboarding</Link></div>;
+    if (!plan) return (
+        <div className="p-6">
+            <BackButton to="/dashboard" />
+            No plan yet. <Link to="/onboarding" className="text-[#FF5722]">Complete onboarding</Link>
+        </div>
+    );
 
-    // Map JS Sunday=0..Saturday=6 → plan day index based on Monday-first names if matching
+    // Map JS Sunday=0..Saturday=6 → plan day index based on Monday-first names
     const dayIndex = ((todayIdx + 6) % 7); // Monday=0..Sunday=6
     const day = plan.days[dayIndex % plan.days.length];
+    const isCompleted = todaySessions.length > 0;
+
+    const startWorkout = () => navigate("/workout/session", { state: { day, dayIndex } });
+
+    const doMore = () => {
+        // "Do more" = start another workout session, do NOT reset today's log
+        navigate("/workout/session", { state: { day, dayIndex } });
+    };
+
+    const restartWorkout = async () => {
+        setResetting(true);
+        try {
+            await api.post("/workout-sessions/reset-today");
+            toast.success("Today's workout progress reset.");
+            setConfirmOpen(false);
+            await loadTodaySessions();
+            navigate("/workout/session", { state: { day, dayIndex } });
+        } catch (e) {
+            toast.error("Failed to reset today's workout");
+        } finally {
+            setResetting(false);
+        }
+    };
 
     return (
         <div className="px-6 pt-10 pb-6">
+            <BackButton to="/dashboard" />
             <Link to="/workout/weekly" className="inline-flex items-center gap-1 text-zinc-400 hover:text-white mb-2 text-sm" data-testid="view-weekly">
                 <Calendar className="w-4 h-4" /> View Weekly Plan
             </Link>
-            <span className="text-xs uppercase tracking-[0.3em] text-[#FF5722] font-bold">{day?.day || "Today"}</span>
-            <h1 className="brand-heading text-5xl mt-1 mb-2">{day?.focus || "Rest"}</h1>
-            <p className="text-zinc-400">{day?.exercises?.length || 0} exercises</p>
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <span className="text-xs uppercase tracking-[0.3em] text-[#FF5722] font-bold">{day?.day || "Today"}</span>
+                    <h1 className="brand-heading text-5xl mt-1 mb-2">{day?.focus || "Rest"}</h1>
+                    <p className="text-zinc-400">{day?.exercises?.length || 0} exercises</p>
+                </div>
+                {isCompleted && (
+                    <div data-testid="workout-status-badge"
+                        className="shrink-0 inline-flex items-center gap-1.5 bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 rounded-full px-3 py-1.5 mt-2">
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span className="text-xs font-bold uppercase tracking-wider">Completed</span>
+                    </div>
+                )}
+            </div>
 
             <div className="mt-6 space-y-3">
                 {day?.exercises?.map((ex, i) => (
@@ -52,11 +109,45 @@ export default function TodayWorkout() {
             </div>
 
             {day?.exercises?.length > 0 && (
-                <Button data-testid="start-workout-btn" onClick={() => navigate("/workout/session", { state: { day, dayIndex } })}
-                    className="w-full h-14 mt-8 bg-[#FF5722] hover:bg-[#E64A19] font-bold uppercase tracking-wider">
-                    <Play className="w-5 h-5 mr-2" /> Start Workout
-                </Button>
+                isCompleted ? (
+                    <div className="mt-8 grid grid-cols-2 gap-3" data-testid="completed-actions">
+                        <Button data-testid="restart-workout-btn" onClick={() => setConfirmOpen(true)}
+                            variant="outline"
+                            className="h-14 bg-transparent border-zinc-700 hover:bg-zinc-900 font-bold uppercase tracking-wider">
+                            <RotateCcw className="w-5 h-5 mr-2" /> Restart
+                        </Button>
+                        <Button data-testid="do-more-btn" onClick={doMore}
+                            className="h-14 bg-[#FF5722] hover:bg-[#E64A19] font-bold uppercase tracking-wider">
+                            <Plus className="w-5 h-5 mr-2" /> Do More
+                        </Button>
+                    </div>
+                ) : (
+                    <Button data-testid="start-workout-btn" onClick={startWorkout}
+                        className="w-full h-14 mt-8 bg-[#FF5722] hover:bg-[#E64A19] font-bold uppercase tracking-wider">
+                        <Play className="w-5 h-5 mr-2" /> Start Workout
+                    </Button>
+                )
             )}
+
+            <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+                <AlertDialogContent data-testid="restart-confirm-dialog" className="bg-zinc-900 border-zinc-800 text-white">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="brand-heading text-2xl">Restart today's workout?</AlertDialogTitle>
+                        <AlertDialogDescription className="text-zinc-400">
+                            Your logged sets, reps, and workout time for today will be permanently deleted,
+                            your streak counter for today will reset, and you'll start today's session from scratch.
+                            This action cannot be undone. Are you sure you want to restart today's workout?
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel data-testid="restart-cancel-btn" className="bg-zinc-800 border-zinc-700 hover:bg-zinc-700 text-white">Cancel</AlertDialogCancel>
+                        <AlertDialogAction data-testid="restart-confirm-btn" onClick={restartWorkout} disabled={resetting}
+                            className="bg-[#FF5722] hover:bg-[#E64A19] text-white">
+                            {resetting ? "Resetting…" : "Yes, restart"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

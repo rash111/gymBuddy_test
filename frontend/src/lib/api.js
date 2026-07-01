@@ -48,8 +48,11 @@ const handlers = {
         return data;
     },
     async regenWorkoutPlan() {
-        const { data: profile } = await this.getProfile();
-        const { data } = await supabase.functions.invoke("generate-workout-plan", { body: { profile: profile.profile } });
+        const p = await this.getProfile();
+        const fitnessProfile = p?.profile || p?.fitness_profile || null;
+        if (!fitnessProfile) throw { response: { data: { detail: "Complete onboarding first" } } };
+        const { data, error } = await supabase.functions.invoke("generate-workout-plan", { body: { profile: fitnessProfile } });
+        if (error) throw { response: { data: { detail: error.message || "Regenerate failed" } } };
         return data;
     },
     // ---- EXERCISES ----
@@ -146,8 +149,11 @@ const handlers = {
         return data;
     },
     async regenDietPlan() {
-        const { data: profile } = await this.getProfile();
-        const { data } = await supabase.functions.invoke("generate-diet-plan", { body: { profile: profile.profile } });
+        const p = await this.getProfile();
+        const fitnessProfile = p?.profile || p?.fitness_profile || null;
+        if (!fitnessProfile) throw { response: { data: { detail: "Complete onboarding first" } } };
+        const { data, error } = await supabase.functions.invoke("generate-diet-plan", { body: { profile: fitnessProfile } });
+        if (error) throw { response: { data: { detail: error.message || "Regenerate failed" } } };
         return data;
     },
     async logMeal(body) {
@@ -159,6 +165,67 @@ const handlers = {
         const user = await requireUser();
         const since = new Date(Date.now() - days * 86400000).toISOString();
         const { data } = await supabase.from("meal_logs").select("*").eq("user_id", user.id).gte("date", since).order("date", { ascending: false });
+        return data || [];
+    },
+    async resetTodayMeals() {
+        const user = await requireUser();
+        const start = new Date(); start.setHours(0, 0, 0, 0);
+        const end = new Date(); end.setHours(23, 59, 59, 999);
+        const { error } = await supabase.from("meal_logs")
+            .delete()
+            .eq("user_id", user.id)
+            .gte("date", start.toISOString())
+            .lte("date", end.toISOString());
+        if (error) throw { response: { data: { detail: error.message } } };
+        return { ok: true };
+    },
+    async resetTodayWorkout() {
+        const user = await requireUser();
+        const start = new Date(); start.setHours(0, 0, 0, 0);
+        const end = new Date(); end.setHours(23, 59, 59, 999);
+        const { error } = await supabase.from("workout_sessions")
+            .delete()
+            .eq("user_id", user.id)
+            .gte("date", start.toISOString())
+            .lte("date", end.toISOString());
+        if (error) throw { response: { data: { detail: error.message } } };
+        // Optionally reset streak/last_workout_date if it was today
+        const today = new Date().toISOString().slice(0, 10);
+        const { data: prof } = await supabase.from("profiles").select("last_workout_date, streak").eq("id", user.id).maybeSingle();
+        if (prof?.last_workout_date === today) {
+            const newStreak = Math.max(0, (prof.streak || 1) - 1);
+            await supabase.from("profiles").update({ last_workout_date: null, streak: newStreak }).eq("id", user.id);
+        }
+        return { ok: true };
+    },
+    async getTodaySessions() {
+        const user = await requireUser();
+        const start = new Date(); start.setHours(0, 0, 0, 0);
+        const end = new Date(); end.setHours(23, 59, 59, 999);
+        const { data } = await supabase.from("workout_sessions")
+            .select("*")
+            .eq("user_id", user.id)
+            .gte("date", start.toISOString())
+            .lte("date", end.toISOString())
+            .order("date", { ascending: false });
+        return data || [];
+    },
+    async getWeekSessions() {
+        const user = await requireUser();
+        // Get current week's Monday
+        const now = new Date();
+        const day = (now.getDay() + 6) % 7; // Monday=0
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - day);
+        monday.setHours(0, 0, 0, 0);
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        sunday.setHours(23, 59, 59, 999);
+        const { data } = await supabase.from("workout_sessions")
+            .select("*")
+            .eq("user_id", user.id)
+            .gte("date", monday.toISOString())
+            .lte("date", sunday.toISOString());
         return data || [];
     },
     // ---- AI ----
@@ -209,6 +276,10 @@ const route = async (method, url, body) => {
     if (u === "/diet-plan/regenerate" && m === "post") return handlers.regenDietPlan();
     if (u === "/meals" && m === "post") return handlers.logMeal(body);
     if (u === "/meals" && m === "get") return handlers.getMeals();
+    if (u === "/meals/reset-today" && m === "post") return handlers.resetTodayMeals();
+    if (u === "/workout-sessions/reset-today" && m === "post") return handlers.resetTodayWorkout();
+    if (u === "/workout-sessions/today" && m === "get") return handlers.getTodaySessions();
+    if (u === "/workout-sessions/week" && m === "get") return handlers.getWeekSessions();
     if (u === "/food-scan" && m === "post") return handlers.scanFood(body.get("file"));
     if (u === "/coach/message" && m === "post") return handlers.coachMessage(body.message);
     if (u === "/coach/history" && m === "get") return handlers.getCoachHistory();

@@ -13,39 +13,77 @@ export function AuthProvider({ children }) {
             setUser(false);
             return;
         }
-
-        const { data, error } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", sessionUser.id)
-            .maybeSingle();
-
-        console.log("PROFILE FROM DB:", data);
-        console.log("PROFILE ERROR:", error);
-
-        setUser({
-            id: sessionUser.id,
-            email: sessionUser.email,
-            name: data?.name || sessionUser.email,
-            onboarded: !!data?.onboarded,
-            profile: data?.fitness_profile,
-            streak: data?.streak || 0,
-        });
+        try {
+            const { data, error } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq("id", sessionUser.id)
+                .maybeSingle();
+            if (error) console.warn("[Auth] profiles fetch error:", error?.message);
+            setUser({
+                id: sessionUser.id,
+                email: sessionUser.email,
+                name: data?.name || sessionUser.email,
+                onboarded: !!data?.onboarded,
+                profile: data?.fitness_profile,
+                streak: data?.streak || 0,
+            });
+        } catch (e) {
+            console.warn("[Auth] fetchProfile threw:", e?.message);
+            setUser({
+                id: sessionUser.id,
+                email: sessionUser.email,
+                name: sessionUser.email,
+                onboarded: false,
+                profile: null,
+                streak: 0,
+            });
+        }
     };
 
     useEffect(() => {
-        supabase.auth.getSession().then(async ({ data: { session } }) => {
-            await fetchProfile(session?.user);
-            setLoading(false);
-        });
+        let cancelled = false;
+        // Safety timeout so we never hang on "Loading…"
+        const safety = setTimeout(() => {
+            if (!cancelled) {
+                console.warn("[Auth] safety timeout — forcing loading=false");
+                setLoading(false);
+            }
+        }, 6000);
+
+        (async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (cancelled) return;
+                await fetchProfile(session?.user);
+            } catch (e) {
+                console.warn("[Auth] init failed:", e?.message);
+                if (!cancelled) setUser(false);
+            } finally {
+                if (!cancelled) setLoading(false);
+                clearTimeout(safety);
+            }
+        })();
 
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange(async (_event, session) => {
-            await fetchProfile(session?.user);
+        } = supabase.auth.onAuthStateChange(async (event, session) => {
+            try {
+                if (event === "SIGNED_OUT") {
+                    setUser(false);
+                    return;
+                }
+                await fetchProfile(session?.user);
+            } catch (e) {
+                console.warn("[Auth] onAuthStateChange error:", e?.message);
+            }
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            cancelled = true;
+            clearTimeout(safety);
+            subscription.unsubscribe();
+        };
     }, []);
 
     const login = async (email, password) => {
@@ -93,7 +131,19 @@ export function AuthProvider({ children }) {
     };
 
     const logout = async () => {
-        await supabase.auth.signOut();
+        try {
+            await supabase.auth.signOut();
+        } catch (e) {
+            console.warn("[Auth] signOut error:", e?.message);
+        }
+        // Force clear any local supabase session tokens to guarantee a clean state
+        try {
+            Object.keys(window.localStorage || {}).forEach((k) => {
+                if (k.startsWith("sb-") && k.includes("-auth-token")) {
+                    window.localStorage.removeItem(k);
+                }
+            });
+        } catch { /* ignore */ }
         setUser(false);
     };
 

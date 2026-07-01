@@ -2,8 +2,10 @@ import React, { useEffect, useState } from "react";
 import api from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "../components/ui/button";
+import BackButton from "../components/BackButton";
 import { LogOut, Target, Activity, User as UserIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 export default function Profile() {
     const { user, logout } = useAuth();
@@ -16,6 +18,7 @@ export default function Profile() {
 
     return (
         <div className="px-6 pt-10 pb-6">
+            <BackButton to="/dashboard" />
             <h1 className="brand-heading text-4xl mb-1">Profile</h1>
             <p className="text-zinc-400 text-sm mb-6">{user?.email}</p>
 
@@ -41,7 +44,15 @@ export default function Profile() {
                 Update Fitness Profile
             </Button>
 
-            <Button data-testid="logout-btn" onClick={async () => { await logout(); navigate("/welcome"); }}
+            <Button data-testid="logout-btn" onClick={async () => {
+                try {
+                    await logout();
+                    toast.success("Signed out.");
+                    navigate("/welcome", { replace: true });
+                } catch (e) {
+                    toast.error("Failed to sign out. Please try again.");
+                }
+            }}
                 variant="outline" className="w-full h-12 bg-transparent border-red-900/50 text-red-400 hover:bg-red-950/30">
                 <LogOut className="w-4 h-4 mr-2" /> Sign Out
             </Button>

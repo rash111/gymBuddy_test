@@ -302,15 +302,144 @@ metadata:
 
 metadata:
   created_by: "main_agent"
-  version: "1.1"
-  test_sequence: 2
+  version: "1.2"
+  test_sequence: 3
   run_ui: true
 
 test_plan:
-  current_focus: []
+  current_focus:
+    - "Back button navigation across screens"
+    - "Diet: Reset button replaces refresh, with confirmation, wipes today's meals"
+    - "FoodScanner: navigates to /diet after logging a meal"
+    - "TodayWorkout: shows Completed badge; shows Restart/Do More instead of Start when completed"
+    - "Restart today's workout confirmation dialog + reset of today's session"
+    - "WeeklyPlan: per-day status (Completed / Missed / Upcoming / Today / Rest)"
+    - "WeeklyPlan: AI Re-gen no longer fails (profile bug fixed)"
+    - "Profile: Sign Out works and navigates to /welcome"
+    - "Dashboard: Calories Burnt Today card shown ONLY when today's workout is complete"
+    - "Dashboard: Profile button moved next to streak pill; Profile removed from bottom nav"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      Implemented user-requested UI/UX enhancements and bug fixes. Summary of changes:
+      1. New shared BackButton component (/app/frontend/src/components/BackButton.jsx) added
+         to all secondary/tab screens with consistent left alignment.
+      2. Diet.jsx: removed refresh button; added Reset button that opens an AlertDialog
+         confirming reset of today's plate. On confirm calls new POST /meals/reset-today
+         which deletes today's meal_logs via Supabase.
+      3. FoodScanner.jsx: after successful meal log toast, calls navigate("/diet")
+         (400ms delay so toast is briefly visible).
+      4. TodayWorkout.jsx: loads today's workout_sessions; if any exist, displays a
+         "Completed" badge and swaps the Start button for two buttons: Restart (opens
+         AlertDialog with a detailed confirmation message and calls POST
+         /workout-sessions/reset-today then navigates to /workout/session) and Do More
+         (just starts a new session without clearing).
+      5. WeeklyPlan.jsx: for each day computes a status via statusFor() using the
+         current week's workout_sessions — labels: Completed / Missed / Today /
+         Upcoming / Rest — each with a colored StatusBadge. Also fixed the AI Re-gen
+         bug in /app/frontend/src/lib/api.js where `regenWorkoutPlan` and
+         `regenDietPlan` were destructuring `{data:profile}` off getProfile() (which
+         returns the object directly, not an axios-shaped response), causing
+         `profile.profile` to be undefined and the edge function to fail.
+      6. Profile.jsx logout: wrapped in try/catch, forcibly clears any leftover
+         supabase auth tokens in localStorage, shows a success toast, then navigates
+         to /welcome with { replace: true }. AuthContext.logout() also improved.
+      7. Dashboard.jsx: added a Profile icon button next to the streak pill (top
+         right), removed Profile from the bottom-nav (Layout.jsx). Also added a
+         second stat card "Calories Burnt" (approx = duration_min * weight_kg * 0.1)
+         that only renders when today's workout is complete; otherwise the Current
+         Streak card is shown.
+      8. AuthContext.jsx retained the safety timeout and error handling from the
+         previous fix, but also handles SIGNED_OUT event explicitly.
+
+      Please test the following flows using a fresh signup or an existing account:
+      A) Back button appears on: /workout, /workout/session, /workout/summary,
+         /workout/weekly, /exercises, /exercises/:id, /progress, /diet,
+         /food-scanner, /coach, /profile. Clicking it navigates back (or to a
+         sensible fallback like /dashboard).
+      B) /diet: click "Reset" — confirm dialog shows; Cancel closes; Confirm
+         removes the logged meals list & zeroes the macros; toast "Today's plate
+         has been reset."
+      C) /food-scanner: after selecting/logging a meal (may use the existing edge
+         function mock), the app should navigate to /diet automatically.
+      D) /workout: with no session today shows Start Workout; after finishing a
+         session (or by seeding one) the page shows a green "Completed" badge and
+         two buttons Restart + Do More. Restart opens a confirmation dialog with the
+         message about progress being deleted; Yes triggers reset+navigate.
+      E) /workout/weekly: each day card shows an appropriate status badge; clicking
+         "AI Re-gen" no longer errors — a new plan is fetched (or the same plan is
+         re-created) and the toast is "Plan regenerated!". Note that this uses
+         Supabase Edge Function generate-workout-plan which requires
+         OPENAI_API_KEY to be set on the Supabase side; if it isn't set the edge
+         function falls back to a deterministic template — either way the frontend
+         request must succeed (no more `undefined` profile issue).
+      F) /profile: click "Sign Out" — must navigate to /welcome, and any subsequent
+         visit to a protected route must redirect to /login (since user is null).
+      G) /dashboard: header shows streak pill AND a profile icon button next to it
+         that navigates to /profile. Bottom nav no longer includes Profile.
+      H) /dashboard: when today's session is logged, the "Current Streak" card is
+         replaced by a "Calories Burnt" card with orange fire icon and kcal unit.
+         When no session today, the Current Streak card is shown as before.
+  - agent: "testing"
+    message: |
+      ⚠️ CRITICAL ISSUE: Multiple pages stuck on "Loading..." - Supabase API calls failing
+      
+      TESTING COMPLETED with MAJOR BLOCKERS found. Several key features cannot be tested
+      due to pages not loading properly.
+      
+      **WORKING FEATURES:**
+      ✅ Dashboard: Profile button next to streak pill - WORKING
+      ✅ Dashboard: Profile removed from bottom nav - WORKING  
+      ✅ Workout page: Back button visible (as link, not BackButton component)
+      ✅ Sign Out: Navigates to /login (not /welcome, but auth is working)
+      
+      **CRITICAL FAILURES:**
+      ❌ Diet page: Stuck on "Loading..." - Reset button NOT accessible
+      ❌ Weekly Plan page: Stuck on "Loading..." - Status badges and AI Re-gen NOT accessible
+      ❌ Profile page: Stuck on "Loading..." - Logout button NOT accessible
+      ❌ Workout page: No Start Workout button, Completed badge, or Restart/Do More buttons visible
+      
+      **ROOT CAUSE ANALYSIS:**
+      Console logs show multiple Supabase API failures:
+      - `generate-workout-plan` edge function: net::ERR_ABORTED
+      - `meal_logs` queries: net::ERR_ABORTED
+      - `workout_sessions` queries: net::ERR_ABORTED
+      
+      These API failures cause pages to hang on "Loading..." state indefinitely.
+      
+      **PARTIAL VERIFICATION (Code Review):**
+      ✅ BackButton component exists with data-testid="back-btn"
+      ✅ Diet Reset button implementation looks correct (data-testid="reset-diet-btn")
+      ✅ FoodScanner navigate("/diet") after log - code is correct
+      ✅ TodayWorkout Completed badge + Restart/Do More buttons - code is correct
+      ✅ WeeklyPlan status badges - code is correct
+      ✅ Profile logout - code is correct
+      
+      **WHAT NEEDS FIXING:**
+      1. Supabase API calls are failing/aborting - investigate network/CORS/auth issues
+      2. Pages need better error handling when API calls fail (don't hang on "Loading...")
+      3. Consider adding fallback UI or error messages when Supabase is unavailable
+      
+      **TESTED SUCCESSFULLY:**
+      - Account creation and onboarding (eventually completes after long wait)
+      - Login/logout flow
+      - Dashboard layout (profile button, bottom nav)
+      - Back button on some pages (Exercises, Progress, Food Scanner, Coach, Profile)
+      
+      **UNABLE TO TEST (due to Loading... hang):**
+      - Diet Reset button functionality
+      - Workout Completed state and Restart/Do More buttons
+      - Weekly Plan status badges
+      - Weekly Plan AI Re-gen
+      - Profile page logout button
+      - Calories Burnt card (requires completed workout)
+      
+      The implemented code appears correct based on file review, but runtime testing
+      is blocked by Supabase API failures.
 
 agent_communication:
   - agent: "main"
