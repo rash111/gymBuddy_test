@@ -11,30 +11,41 @@ export function AuthProvider({ children }) {
     const fetchProfile = async (sessionUser) => {
         if (!sessionUser) {
             setUser(false);
+            try { window.localStorage.removeItem("gb_onboarded"); } catch { /* noop */ }
             return;
         }
         try {
-            const { data, error } = await supabase
+            // Race with a 4s timeout so we never hang the app on a slow RLS query
+            const query = supabase
                 .from("profiles")
                 .select("*")
                 .eq("id", sessionUser.id)
                 .maybeSingle();
-            if (error) console.warn("[Auth] profiles fetch error:", error?.message);
+            const timeout = new Promise((res) => setTimeout(() => res({ data: null, error: { message: "timeout" }, __timedout: true }), 4000));
+            const { data, error, __timedout } = await Promise.race([query, timeout]);
+            if (error && !__timedout) console.warn("[Auth] profiles fetch error:", error?.message);
+            if (__timedout) {
+                console.warn("[Auth] profiles fetch timeout; using cached/optimistic values");
+            }
+            const cachedOnboarded = (() => { try { return window.localStorage.getItem("gb_onboarded") === "1"; } catch { return false; } })();
+            const onboarded = data ? !!data.onboarded : cachedOnboarded;
+            try { window.localStorage.setItem("gb_onboarded", onboarded ? "1" : "0"); } catch { /* noop */ }
             setUser({
                 id: sessionUser.id,
                 email: sessionUser.email,
-                name: data?.name || sessionUser.email,
-                onboarded: !!data?.onboarded,
-                profile: data?.fitness_profile,
+                name: data?.name || sessionUser.user_metadata?.name || sessionUser.email,
+                onboarded,
+                profile: data?.fitness_profile || null,
                 streak: data?.streak || 0,
             });
         } catch (e) {
             console.warn("[Auth] fetchProfile threw:", e?.message);
+            const cachedOnboarded = (() => { try { return window.localStorage.getItem("gb_onboarded") === "1"; } catch { return false; } })();
             setUser({
                 id: sessionUser.id,
                 email: sessionUser.email,
-                name: sessionUser.email,
-                onboarded: false,
+                name: sessionUser.user_metadata?.name || sessionUser.email,
+                onboarded: cachedOnboarded,
                 profile: null,
                 streak: 0,
             });
@@ -49,7 +60,7 @@ export function AuthProvider({ children }) {
                 console.warn("[Auth] safety timeout — forcing loading=false");
                 setLoading(false);
             }
-        }, 6000);
+        }, 4000);
 
         (async () => {
             try {
@@ -67,13 +78,17 @@ export function AuthProvider({ children }) {
 
         const {
             data: { subscription },
-        } = supabase.auth.onAuthStateChange(async (event, session) => {
+        } = supabase.auth.onAuthStateChange((event, session) => {
             try {
                 if (event === "SIGNED_OUT") {
                     setUser(false);
+                    try { window.localStorage.removeItem("gb_onboarded"); } catch { /* noop */ }
                     return;
                 }
-                await fetchProfile(session?.user);
+                if (session?.user) {
+                    // fire-and-forget so we don't block auth events
+                    fetchProfile(session.user);
+                }
             } catch (e) {
                 console.warn("[Auth] onAuthStateChange error:", e?.message);
             }
@@ -143,6 +158,7 @@ export function AuthProvider({ children }) {
                     window.localStorage.removeItem(k);
                 }
             });
+            window.localStorage.removeItem("gb_onboarded");
         } catch { /* ignore */ }
         setUser(false);
     };

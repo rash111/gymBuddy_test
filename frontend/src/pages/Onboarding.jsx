@@ -39,6 +39,7 @@ export default function Onboarding() {
         try {
             const { data } = await api.post("/onboarding", form);
             setUser((u) => ({ ...u, onboarded: true, profile: data.profile }));
+            try { window.localStorage.setItem("gb_onboarded", "1"); } catch { /* noop */ }
             toast.success("Plan ready! Let's train.");
             navigate("/dashboard");
         } catch (e) {
