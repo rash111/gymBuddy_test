@@ -10,19 +10,85 @@ export function AuthProvider({ children }) {
 
     const fetchProfile = async (sessionUser) => {
         if (!sessionUser) { setUser(false); return; }
-        const { data } = await supabase.from("profiles").select("*").eq("id", sessionUser.id).maybeSingle();
-        setUser({ id: sessionUser.id, email: sessionUser.email, name: data?.name || sessionUser.email, onboarded: !!data?.onboarded, profile: data?.fitness_profile, streak: data?.streak || 0 });
+        try {
+            const { data, error } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq("id", sessionUser.id)
+                .maybeSingle();
+            if (error) {
+                // eslint-disable-next-line no-console
+                console.warn("[Auth] profiles fetch error:", error.message);
+            }
+            setUser({
+                id: sessionUser.id,
+                email: sessionUser.email,
+                name: data?.name || sessionUser.email,
+                onboarded: !!data?.onboarded,
+                profile: data?.fitness_profile,
+                streak: data?.streak || 0,
+            });
+        } catch (err) {
+            // eslint-disable-next-line no-console
+            console.error("[Auth] fetchProfile threw:", err);
+            // Fall back to a minimal user object so we still route the user out of "Loading…"
+            setUser({
+                id: sessionUser.id,
+                email: sessionUser.email,
+                name: sessionUser.email,
+                onboarded: false,
+                profile: null,
+                streak: 0,
+            });
+        }
     };
 
     useEffect(() => {
-        supabase.auth.getSession().then(async ({ data: { session } }) => {
-            await fetchProfile(session?.user);
-            setLoading(false);
-        });
+        let cancelled = false;
+
+        // Safety timeout: never let the app hang on "Loading…" forever.
+        // If Supabase getSession / profile fetch is slow or broken, force-clear loading
+        // after 6s so the user is at least routed to /welcome.
+        const safety = setTimeout(() => {
+            if (!cancelled) {
+                // eslint-disable-next-line no-console
+                console.warn("[Auth] safety timeout reached — forcing loading=false");
+                setUser((u) => (u === null ? false : u));
+                setLoading(false);
+            }
+        }, 6000);
+
+        (async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (cancelled) return;
+                await fetchProfile(session?.user);
+            } catch (err) {
+                // eslint-disable-next-line no-console
+                console.error("[Auth] getSession failed:", err);
+                if (!cancelled) setUser(false);
+            } finally {
+                if (!cancelled) {
+                    clearTimeout(safety);
+                    setLoading(false);
+                }
+            }
+        })();
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_e, session) => {
-            await fetchProfile(session?.user);
+            try {
+                await fetchProfile(session?.user);
+            } catch (err) {
+                // eslint-disable-next-line no-console
+                console.error("[Auth] onAuthStateChange fetchProfile failed:", err);
+            }
         });
-        return () => subscription?.unsubscribe();
+
+        return () => {
+            cancelled = true;
+            clearTimeout(safety);
+            subscription?.unsubscribe();
+        };
     }, []);
 
     const login = async (email, password) => {
