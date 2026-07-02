@@ -7,11 +7,19 @@ import { Input } from "../components/ui/input";
 import { Activity, Dumbbell, Flame, Image, LineChart as LineIcon, Plus, Ruler, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
 
 const measurementKeys = ["chest_cm", "waist_cm", "hips_cm", "arm_cm", "thigh_cm"];
 const emptyMetrics = { weight_kg: "", body_fat_percent: "", chest_cm: "", waist_cm: "", hips_cm: "", arm_cm: "", thigh_cm: "" };
 
 export default function Progress() {
+    
+    const [selectedPhoto, setSelectedPhoto] = useState(null); 
     const [weights, setWeights] = useState([]);
     const [measurements, setMeasurements] = useState([]);
     const [photos, setPhotos] = useState([]);
@@ -90,24 +98,12 @@ export default function Progress() {
     };
 
     return (
-        <div className="px-6 pt-10 pb-6">
+        <div className="px-6 pt-10 pb-40">
             <BackButton to="/dashboard" />
             <h1 className="brand-heading text-4xl mb-1">Progress</h1>
             <p className="text-zinc-400 text-sm mb-6">Your transformation, by the numbers</p>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-4">
-                <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs uppercase tracking-[0.3em] text-[#FF5722] font-bold">Strength Progress</span>
-                    <Dumbbell className="w-4 h-4 text-[#FF5722]" />
-                </div>
-                {strengthSummary.length ? (
-                    <div className="grid grid-cols-3 gap-3">
-                        {strengthSummary.slice(0, 3).map((s) => (
-                            <MiniStat key={s.name} label={s.name} value={`${s.best} kg`} sub={`1RM ${s.oneRm} kg`} />
-                        ))}
-                    </div>
-                ) : <p className="text-zinc-500 text-sm">Complete weighted workouts to build your strength trend.</p>}
-            </div>
+
 
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-4">
                 <div className="flex items-center justify-between mb-2">
@@ -167,16 +163,18 @@ export default function Progress() {
                     <ChartBlock title="Body Measurements" empty={!measurementSeries.some((r) => measurementKeys.some((k) => r[k.replace("_cm", "")]))}>
                         <LineChart data={measurementSeries}><XAxis dataKey="date" stroke="#71717a" fontSize={11} /><YAxis stroke="#71717a" fontSize={11} /><Tooltip contentStyle={tipStyle} /><Legend />{["chest", "waist", "hips", "arm", "thigh"].map((k, i) => <Line key={k} type="monotone" dataKey={k} stroke={["#FF5722", "#00E5FF", "#A3E635", "#F59E0B", "#E879F9"][i]} strokeWidth={2} dot={false} />)}</LineChart>
                     </ChartBlock>
+                     <section className="space-y-2">
+                        <p className="brand-heading text-xl">Body Metrics History</p>
+                        {bodyHistory.length ? bodyHistory.map((r) => <HistoryRow key={r.date} record={r} onViewPhoto={setSelectedPhoto} />) : <p className="text-zinc-500 text-sm">No body metrics yet.</p>}
+                    </section>
+                    
                 </TabsContent>
 
                 <TabsContent value="strength" className="mt-4 space-y-4">
                     <ChartBlock title={selectedStrength ? `${selectedStrength} Progress` : "Strength Progress"} empty={!selectedStrengthSeries.length}>
                         <LineChart data={selectedStrengthSeries}><XAxis dataKey="date" stroke="#71717a" fontSize={11} /><YAxis stroke="#71717a" fontSize={11} /><Tooltip contentStyle={tipStyle} /><Legend /><Line type="monotone" dataKey="weight" name="Top Weight" stroke="#00E5FF" strokeWidth={2} dot={{ fill: "#00E5FF", r: 3 }} /><Line type="monotone" dataKey="one_rm" name="Estimated 1RM" stroke="#FF5722" strokeWidth={2} dot={{ fill: "#FF5722", r: 3 }} /></LineChart>
                     </ChartBlock>
-                    <section className="space-y-2">
-                        <p className="brand-heading text-xl">Body Metrics History</p>
-                        {bodyHistory.length ? bodyHistory.map((r) => <HistoryRow key={r.date} record={r} />) : <p className="text-zinc-500 text-sm">No body metrics yet.</p>}
-                    </section>
+                   
                     <section className="space-y-2">
                         <p className="brand-heading text-xl">Strength History</p>
                         {strengthRows.slice().reverse().slice(0, 10).map((r, i) => <div key={`${r.name}-${i}`} className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-sm flex justify-between"><span className="text-zinc-500">{r.date.slice(0, 10)}</span><span>{r.name}</span><span className="text-[#00E5FF]">{r.weight_kg} kg</span></div>)}
@@ -184,7 +182,29 @@ export default function Progress() {
                 </TabsContent>
             </Tabs>
         </div>
+        
+
     );
+     <Dialog
+            open={!!selectedPhoto}
+            onOpenChange={() => setSelectedPhoto(null)}
+        >
+            <DialogContent className="max-w-lg bg-zinc-900 border-zinc-800">
+                <DialogHeader>
+                    <DialogTitle>
+                        Progress Photo
+                    </DialogTitle>
+                </DialogHeader>
+
+                {selectedPhoto && (
+                    <img
+                        src={selectedPhoto}
+                        alt="Progress"
+                        className="w-full rounded-xl object-cover"
+                    />
+                )}
+            </DialogContent>
+        </Dialog>
 }
 
 const tipStyle = { background: "#18181b", border: "1px solid #27272a", borderRadius: 8 };
@@ -220,18 +240,104 @@ function ChartBlock({ title, empty, children }) {
     return <section className="bg-zinc-900 border border-zinc-800 rounded-xl p-4"><p className="brand-heading text-xl mb-3">{title}</p>{empty ? <p className="text-zinc-500 text-sm">Add more data to see this chart.</p> : <div className="h-64"><ResponsiveContainer>{children}</ResponsiveContainer></div>}</section>;
 }
 
-function HistoryRow({ record }) {
-    const measurements = measurementKeys.filter((k) => record[k]).map((k) => `${k.replace("_cm", "")}: ${record[k]} cm`).join(" · ");
+function HistoryRow({ record, onViewPhoto }) {
     return (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-3 text-sm flex items-center gap-3">
-            <div className="w-12 h-12 bg-zinc-950 border border-zinc-800 rounded-lg overflow-hidden flex items-center justify-center shrink-0">
-                {record.photo_url ? <img alt="" src={record.photo_url} className="w-full h-full object-cover" /> : <Image className="w-4 h-4 text-zinc-700" />}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5 space-y-4">
+
+            {/* Header */}
+            <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-white">
+                    {new Date(record.date).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                    })}
+                </h3>
+
+                {record.photo_url && (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onViewPhoto(record.photo_url)}
+                    >
+                        View Photo
+                    </Button>
+                )}
             </div>
-            <div className="min-w-0 flex-1">
-                <div className="flex justify-between gap-3"><span className="text-zinc-500">{record.date}</span><span className="text-zinc-400">{record.photo_url ? "Photo" : "No photo"}</span></div>
-                <p className="text-zinc-200 truncate">Weight: {record.weight_kg || "-"} kg · Body Fat: {record.body_fat_percent || "-"}%</p>
-                <p className="text-zinc-500 truncate">{measurements || "No measurements"}</p>
+
+            {/* Stats */}
+
+            <div className="grid grid-cols-2 gap-3">
+
+                <Metric label="Weight" value={`${record.weight_kg ?? "-"} kg`} />
+
+                <Metric
+                    label="Body Fat"
+                    value={`${record.body_fat_percent ?? "-"} %`}
+                />
+
             </div>
+
+            {/* Measurements */}
+
+            <div className="border-t border-zinc-800 pt-4">
+
+                <p className="text-xs uppercase tracking-widest text-zinc-500 mb-3">
+                    Measurements
+                </p>
+
+                <div className="grid grid-cols-2 gap-y-2 text-sm">
+
+                    <Measure
+                        label="Chest"
+                        value={record.chest_cm}
+                    />
+
+                    <Measure
+                        label="Waist"
+                        value={record.waist_cm}
+                    />
+
+                    <Measure
+                        label="Hips"
+                        value={record.hips_cm}
+                    />
+
+                    <Measure
+                        label="Arm"
+                        value={record.arm_cm}
+                    />
+
+                    <Measure
+                        label="Thigh"
+                        value={record.thigh_cm}
+                    />
+
+                </div>
+
+            </div>
+
         </div>
     );
 }
+
+function Metric({ label, value }) {
+    return (
+        <div className="bg-zinc-950 rounded-xl p-3 border border-zinc-800">
+            <p className="text-xs text-zinc-500">{label}</p>
+            <p className="text-xl font-bold text-white mt-1">{value}</p>
+        </div>
+    );
+}
+
+function Measure({ label, value }) {
+    return (
+        <>
+            <span className="text-zinc-500">{label}</span>
+            <span className="text-right text-white">
+                {value ? `${value} cm` : "-"}
+            </span>
+        </>
+    );
+}
+

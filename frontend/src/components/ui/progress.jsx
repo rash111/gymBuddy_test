@@ -1,5 +1,11 @@
 import * as React from "react"
 import * as ProgressPrimitive from "@radix-ui/react-progress"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "../components/ui/dialog";
 
 import { cn } from "@/lib/utils"
 
