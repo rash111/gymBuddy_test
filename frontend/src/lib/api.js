@@ -138,6 +138,79 @@ const handlers = {
         if (error) throw { response: { data: { detail: error.message || "Regenerate failed" } } };
         return saved;
     },
+    async rescheduleWorkoutDay({ sourceIdx, targetIdx }) {
+        // Swap the workout at plan.days[sourceIdx] with plan.days[targetIdx],
+        // enforcing:
+        //   - source must NOT be completed (has no session logged today)
+        //   - target must NOT be completed
+        //   - target must be future OR (past AND missed)
+        // "Missed" = past day with exercises but no session logged this week.
+        const user = await requireUser();
+        if (sourceIdx === targetIdx) throw { response: { data: { detail: "Pick a different day" } } };
+        const { data: plan } = await supabase.from("workout_plans")
+            .select("*").eq("user_id", user.id).eq("active", true).maybeSingle();
+        if (!plan) throw { response: { data: { detail: "No active plan" } } };
+        const days = Array.isArray(plan.days) ? [...plan.days] : [];
+        if (!days[sourceIdx] || !days[targetIdx]) throw { response: { data: { detail: "Invalid day index" } } };
+
+        // Determine current-week completion for source & target using workout_sessions
+        const now = new Date();
+        const todayIdxMondayFirst = (now.getDay() + 6) % 7;
+        const monday = new Date(now);
+        monday.setDate(now.getDate() - todayIdxMondayFirst);
+        monday.setHours(0, 0, 0, 0);
+        const sunday = new Date(monday);
+        sunday.setDate(monday.getDate() + 6);
+        sunday.setHours(23, 59, 59, 999);
+        const { data: sessions } = await supabase.from("workout_sessions")
+            .select("date")
+            .eq("user_id", user.id)
+            .gte("date", monday.toISOString())
+            .lte("date", sunday.toISOString());
+
+        const dayHasSession = (idx) => {
+            const d0 = new Date(monday);
+            d0.setDate(monday.getDate() + idx);
+            d0.setHours(0, 0, 0, 0);
+            const d1 = new Date(d0);
+            d1.setHours(23, 59, 59, 999);
+            return (sessions || []).some((s) => {
+                const t = new Date(s.date);
+                return t >= d0 && t <= d1;
+            });
+        };
+        const sourceCompleted = dayHasSession(sourceIdx);
+        const targetCompleted = dayHasSession(targetIdx);
+        if (sourceCompleted) throw { response: { data: { detail: "This workout is already completed — it can't be moved." } } };
+        if (targetCompleted) throw { response: { data: { detail: "Target day is already completed — pick another day." } } };
+
+        const isPast = targetIdx < todayIdxMondayFirst;
+        const isFuture = targetIdx > todayIdxMondayFirst;
+        if (!isFuture && !isPast) {
+            // targetIdx === todayIdxMondayFirst shouldn't happen (source is today)
+            throw { response: { data: { detail: "Pick a different day" } } };
+        }
+        if (isPast) {
+            const targetHasExercises = Array.isArray(days[targetIdx].exercises) && days[targetIdx].exercises.length > 0;
+            const targetMissed = targetHasExercises && !targetCompleted;
+            if (!targetMissed) {
+                throw { response: { data: { detail: "You can only swap with a past day that was missed." } } };
+            }
+        }
+
+        // Preserve day-of-week labels; swap only focus + exercises
+        const srcDay = days[sourceIdx];
+        const tgtDay = days[targetIdx];
+        days[sourceIdx] = { ...srcDay, focus: tgtDay.focus, exercises: tgtDay.exercises || [] };
+        days[targetIdx] = { ...tgtDay, focus: srcDay.focus, exercises: srcDay.exercises || [] };
+
+        const { data: saved, error } = await supabase.from("workout_plans")
+            .update({ days })
+            .eq("id", plan.id)
+            .select().single();
+        if (error) throw { response: { data: { detail: error.message || "Reschedule failed" } } };
+        return saved;
+    },
     // ---- EXERCISES ----
     async getExercises() {
         const { data } = await supabase.from("exercises").select("*").order("name");
@@ -384,6 +457,7 @@ const route = async (method, url, body) => {
     if (u === "/onboarding" && m === "post") return handlers.submitOnboarding(body);
     if (u === "/workout-plan" && m === "get") return handlers.getWorkoutPlan();
     if (u === "/workout-plan/regenerate" && m === "post") return handlers.regenWorkoutPlan();
+    if (u === "/workout-plan/reschedule" && m === "post") return handlers.rescheduleWorkoutDay(body);
     if (u === "/exercises" && m === "get") return handlers.getExercises();
     if (u.startsWith("/exercises/") && m === "get") return handlers.getExercise(u.split("/")[2]);
     if (u === "/workout-sessions" && m === "post") return handlers.logSession(body);

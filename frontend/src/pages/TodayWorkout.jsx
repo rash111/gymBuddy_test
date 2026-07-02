@@ -2,12 +2,16 @@ import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../lib/api";
 import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
 import {
     AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
     AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "../components/ui/alert-dialog";
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "../components/ui/dialog";
 import BackButton from "../components/BackButton";
-import { Play, ChevronRight, Calendar, RotateCcw, Plus, CheckCircle2 } from "lucide-react";
+import { Play, ChevronRight, Calendar, RotateCcw, Plus, CheckCircle2, Search, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function TodayWorkout() {
@@ -15,6 +19,13 @@ export default function TodayWorkout() {
     const [todaySessions, setTodaySessions] = useState([]);
     const [confirmOpen, setConfirmOpen] = useState(false);
     const [resetting, setResetting] = useState(false);
+
+    // Do More dialog
+    const [doMoreOpen, setDoMoreOpen] = useState(false);
+    const [exercises, setExercises] = useState([]);
+    const [exQ, setExQ] = useState("");
+    const [loadingExercises, setLoadingExercises] = useState(false);
+
     const navigate = useNavigate();
     const todayIdx = new Date().getDay(); // Sun=0..Sat=6
 
@@ -50,9 +61,37 @@ export default function TodayWorkout() {
 
     const startWorkout = () => navigate("/workout/session", { state: { day, dayIndex } });
 
-    const doMore = () => {
-        // "Do more" = start another workout session, do NOT reset today's log
-        navigate("/workout/session", { state: { day, dayIndex } });
+    const openDoMore = async () => {
+        setDoMoreOpen(true);
+        if (exercises.length === 0) {
+            setLoadingExercises(true);
+            try {
+                const { data } = await api.get("/exercises");
+                setExercises(data || []);
+            } catch { setExercises([]); }
+            finally { setLoadingExercises(false); }
+        }
+    };
+
+    const pickExercise = (ex) => {
+        setDoMoreOpen(false);
+        navigate("/workout/session", {
+            state: {
+                day: {
+                    day: "Add-on",
+                    focus: `Bonus: ${ex.name}`,
+                    exercises: [{
+                        exercise_id: ex.id,
+                        name: ex.name,
+                        sets: 3,
+                        reps: "8-12",
+                        rest_sec: 60,
+                    }],
+                },
+                dayIndex,
+                isExtra: true,
+            },
+        });
     };
 
     const restartWorkout = async () => {
@@ -121,7 +160,7 @@ export default function TodayWorkout() {
                             className="h-14 bg-transparent border-zinc-700 hover:bg-zinc-900 font-bold uppercase tracking-wider">
                             <RotateCcw className="w-5 h-5 mr-2" /> Restart
                         </Button>
-                        <Button data-testid="do-more-btn" onClick={doMore}
+                        <Button data-testid="do-more-btn" onClick={openDoMore}
                             className="h-14 bg-[#FF5722] hover:bg-[#E64A19] font-bold uppercase tracking-wider">
                             <Plus className="w-5 h-5 mr-2" /> Do More
                         </Button>
@@ -153,6 +192,80 @@ export default function TodayWorkout() {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <DoMoreDialog
+                open={doMoreOpen}
+                onOpenChange={setDoMoreOpen}
+                exercises={exercises}
+                exQ={exQ}
+                setExQ={setExQ}
+                loadingExercises={loadingExercises}
+                pickExercise={pickExercise}
+            />
         </div>
+    );
+}
+
+// ---- Exercise search dialog reused for "Do More" ----
+function DoMoreDialog({ open, onOpenChange, exercises, exQ, setExQ, loadingExercises, pickExercise }) {
+    const q = (exQ || "").trim().toLowerCase();
+    const filtered = !q
+        ? exercises.slice(0, 30)
+        : exercises.filter((e) =>
+            (e.name || "").toLowerCase().includes(q) ||
+            (e.muscle || "").toLowerCase().includes(q) ||
+            (e.equipment || "").toLowerCase().includes(q)
+        ).slice(0, 30);
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent data-testid="do-more-dialog" className="bg-zinc-900 border-zinc-800 text-white max-w-md">
+                <DialogHeader>
+                    <DialogTitle className="brand-heading text-2xl">Add an exercise</DialogTitle>
+                    <DialogDescription className="text-zinc-400">
+                        Search and pick any exercise to add to today's session. Your extra work will
+                        be counted in totals, calories, volume, progress, and history.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="mt-2">
+                    <div className="relative">
+                        <Search className="w-4 h-4 text-zinc-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <Input data-testid="do-more-search"
+                            autoFocus
+                            placeholder="Search: push-up, squat, chest, dumbbell…"
+                            value={exQ}
+                            onChange={(e) => setExQ(e.target.value)}
+                            className="bg-zinc-950 border-zinc-800 pl-9 h-11" />
+                    </div>
+                    <div className="mt-3 max-h-72 overflow-y-auto space-y-1">
+                        {loadingExercises && (
+                            <div className="flex items-center gap-2 text-zinc-500 p-3">
+                                <Loader2 className="w-4 h-4 animate-spin" /> Loading exercises…
+                            </div>
+                        )}
+                        {!loadingExercises && filtered.length === 0 && (
+                            <p className="text-zinc-500 text-sm p-3" data-testid="do-more-empty">No exercises match.</p>
+                        )}
+                        {filtered.map((ex, i) => (
+                            <button key={ex.id || i} type="button" data-testid={`do-more-ex-${i}`}
+                                onClick={() => pickExercise(ex)}
+                                className="w-full text-left rounded-lg border border-zinc-800 bg-zinc-950 hover:border-[#FF5722]/50 hover:bg-zinc-900 p-3 transition-colors">
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className="font-semibold">{ex.name}</span>
+                                    {ex.muscle && (
+                                        <span className="text-[10px] uppercase tracking-wider bg-[#FF5722]/10 text-[#FF5722] border border-[#FF5722]/30 rounded-full px-2 py-0.5">
+                                            {ex.muscle}
+                                        </span>
+                                    )}
+                                </div>
+                                {ex.equipment && (
+                                    <p className="text-zinc-500 text-xs mt-0.5">{ex.equipment}</p>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
     );
 }

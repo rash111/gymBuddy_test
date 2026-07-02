@@ -84,7 +84,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-2 gap-3">
                 <ActionTile to="/diet" icon={Apple} label="Diet Plan" />
                 <ActionTile to="/food-scanner" icon={Camera} label="Scan Food" />
-                <ActionTile to="/workout/weekly" icon={Dumbbell} label="Weekly Plan" />
+                <ActionTile to="/workout/weekly" icon={Dumbbell} label="Modify Weekly Plan" testid="action-modify-weekly" />
                 <ActionTile to="/coach" icon={Flame} label="AI Coach" />
             </div>
         </div>
@@ -101,8 +101,8 @@ const StatCard = ({ icon: Icon, label, value, unit, testid, tintClass = "text-[#
     </div>
 );
 
-const ActionTile = ({ to, icon: Icon, label }) => (
-    <Link to={to} data-testid={`action-${label.toLowerCase().replace(/\s/g, "-")}`}
+const ActionTile = ({ to, icon: Icon, label, testid }) => (
+    <Link to={to} data-testid={testid || `action-${label.toLowerCase().replace(/\s/g, "-")}`}
         className="bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl p-4 flex items-center gap-3 transition-colors">
         <div className="w-10 h-10 rounded-lg bg-[#FF5722]/10 border border-[#FF5722]/20 flex items-center justify-center">
             <Icon className="w-5 h-5 text-[#FF5722]" />
