@@ -245,7 +245,15 @@ const handlers = {
     // ---- PROGRESS ----
     async logWeight(body) {
         const user = await requireUser();
-        const { data } = await supabase.from("weight_entries").insert({ user_id: user.id, ...body, date: new Date().toISOString() }).select().single();
+        const today = new Date().toISOString().slice(0, 10);
+        const start = `${today}T00:00:00.000Z`;
+        const end = `${today}T23:59:59.999Z`;
+        const { data: existing } = await supabase.from("weight_entries").select("*").eq("user_id", user.id).gte("date", start).lte("date", end).maybeSingle();
+        const query = existing
+            ? supabase.from("weight_entries").update({ ...body, date: new Date().toISOString() }).eq("id", existing.id)
+            : supabase.from("weight_entries").insert({ user_id: user.id, ...body, date: new Date().toISOString() });
+        const { data, error } = await query.select().single();
+        if (error) throw { response: { data: { detail: error.message } } };
         return data;
     },
     async getWeights() {
@@ -255,7 +263,15 @@ const handlers = {
     },
     async logMeasurement(body) {
         const user = await requireUser();
-        const { data } = await supabase.from("measurements").insert({ user_id: user.id, ...body, date: new Date().toISOString() }).select().single();
+        const today = new Date().toISOString().slice(0, 10);
+        const start = `${today}T00:00:00.000Z`;
+        const end = `${today}T23:59:59.999Z`;
+        const { data: existing } = await supabase.from("measurements").select("*").eq("user_id", user.id).gte("date", start).lte("date", end).maybeSingle();
+        const query = existing
+            ? supabase.from("measurements").update({ ...body, date: new Date().toISOString() }).eq("id", existing.id)
+            : supabase.from("measurements").insert({ user_id: user.id, ...body, date: new Date().toISOString() });
+        const { data, error } = await query.select().single();
+        if (error) throw { response: { data: { detail: error.message } } };
         return data;
     },
     async getMeasurements() {
@@ -265,11 +281,19 @@ const handlers = {
     },
     async uploadPhoto(file) {
         const user = await requireUser();
+        const today = new Date().toISOString().slice(0, 10);
+        const start = `${today}T00:00:00.000Z`;
+        const end = `${today}T23:59:59.999Z`;
+        const { data: existing } = await supabase.from("progress_photos").select("*").eq("user_id", user.id).gte("date", start).lte("date", end).maybeSingle();
         const ext = (file.name || "photo.jpg").split(".").pop();
         const path = `${user.id}/${crypto.randomUUID()}.${ext}`;
         const { error } = await supabase.storage.from("progress-photos").upload(path, file, { contentType: file.type || "image/jpeg", upsert: false });
         if (error) throw { response: { data: { detail: error.message } } };
-        const { data } = await supabase.from("progress_photos").insert({ user_id: user.id, storage_path: path, content_type: file.type || "image/jpeg", date: new Date().toISOString() }).select().single();
+        const query = existing
+            ? supabase.from("progress_photos").update({ storage_path: path, content_type: file.type || "image/jpeg", date: new Date().toISOString() }).eq("id", existing.id)
+            : supabase.from("progress_photos").insert({ user_id: user.id, storage_path: path, content_type: file.type || "image/jpeg", date: new Date().toISOString() });
+        const { data, error: saveError } = await query.select().single();
+        if (saveError) throw { response: { data: { detail: saveError.message } } };
         return data;
     },
     async getPhotos() {
@@ -283,10 +307,38 @@ const handlers = {
         sessions.slice().reverse().forEach((s) => {
             (s.exercises || []).forEach((ex) => {
                 const top = Math.max(0, ...((ex.sets || []).map((st) => st.weight_kg || 0)));
-                if (top > 0) (out[ex.exercise_name] = out[ex.exercise_name] || []).push({ date: s.date, weight_kg: top });
+                const reps = Math.max(1, ...((ex.sets || []).filter((st) => st.weight_kg > 0).map((st) => st.reps || 1)));
+                const estimated_1rm = top > 0 ? Math.round(top * (1 + reps / 30)) : 0;
+                if (top > 0) (out[ex.exercise_name] = out[ex.exercise_name] || []).push({ date: s.date, weight_kg: top, estimated_1rm });
             });
         });
         return out;
+    },
+    async getWorkoutProgressSummary() {
+        const [sessions, planRes] = await Promise.all([
+            this.getSessions(),
+            this.getWorkoutPlan().catch(() => null),
+        ]);
+        const exercisesCompleted = sessions.reduce((a, s) => a + (s.exercises || []).length, 0);
+        const setsCompleted = sessions.reduce((a, s) => a + (s.exercises || []).reduce((x, ex) => x + (ex.sets || []).filter((st) => st.completed !== false).length, 0), 0);
+        const repsCompleted = sessions.reduce((a, s) => a + (s.exercises || []).reduce((x, ex) => x + (ex.sets || []).filter((st) => st.completed !== false).reduce((r, st) => r + (Number(st.reps) || 0), 0), 0), 0);
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const completedDays = new Set(sessions.filter((s) => new Date(s.date) >= monthStart).map((s) => s.date.slice(0, 10)));
+        let planned = 0;
+        for (let d = new Date(monthStart); d <= today; d.setDate(d.getDate() + 1)) {
+            const idx = (d.getDay() + 6) % 7;
+            const day = planRes?.days?.[idx % (planRes?.days?.length || 1)];
+            if ((day?.exercises || []).length > 0) planned += 1;
+        }
+        return {
+            workouts_completed: sessions.length,
+            exercises_completed: exercisesCompleted,
+            sets_completed: setsCompleted,
+            reps_completed: repsCompleted,
+            missed_workouts: Math.max(0, planned - completedDays.size),
+        };
     },
     async getConsistency() {
         const user = await requireUser();
@@ -470,6 +522,7 @@ const route = async (method, url, body) => {
     if (u === "/progress/photos" && m === "get") return handlers.getPhotos();
     if (u === "/progress/strength" && m === "get") return handlers.getStrength();
     if (u === "/progress/consistency" && m === "get") return handlers.getConsistency();
+    if (u === "/progress/workout-summary" && m === "get") return handlers.getWorkoutProgressSummary();
     if (u === "/diet-plan" && m === "get") return handlers.getDietPlan();
     if (u === "/diet-plan/regenerate" && m === "post") return handlers.regenDietPlan();
     if (u === "/meals" && m === "post") return handlers.logMeal(body);

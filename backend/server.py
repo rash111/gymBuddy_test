@@ -19,18 +19,19 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage, TextDelta, StreamDone, ImageContent
+from openai import AsyncOpenAI
 
 # ===== CONFIG =====
 mongo_url = os.environ["MONGO_URL"]
-client = AsyncIOMotorClient(mongo_url)
+client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=2000)
 db = client[os.environ["DB_NAME"]]
 
 JWT_SECRET = os.environ["JWT_SECRET"]
 JWT_ALG = "HS256"
-EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY") or os.environ.get("EMERGENT_LLM_KEY")
 APP_NAME = os.environ.get("APP_NAME", "gymbuddy")
-LLM_MODEL = ("openai", "gpt-4.1-mini")
+LLM_MODEL = os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
+openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY) if OPENAI_API_KEY else None
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("gymbuddy")
@@ -165,6 +166,7 @@ class WeightEntryIn(BaseModel):
     note: Optional[str] = ""
 
 class MeasurementIn(BaseModel):
+    body_fat_percent: Optional[float] = None
     chest_cm: Optional[float] = None
     waist_cm: Optional[float] = None
     hips_cm: Optional[float] = None
@@ -207,17 +209,21 @@ EXERCISE_SEED = [
 # ===== STARTUP =====
 @app.on_event("startup")
 async def startup():
-    await db.users.create_index("email", unique=True)
-    await db.workout_sessions.create_index([("user_id", 1), ("date", -1)])
-    await db.meal_logs.create_index([("user_id", 1), ("date", -1)])
-    await db.weight_entries.create_index([("user_id", 1), ("date", -1)])
-    # seed exercises
-    count = await db.exercises.count_documents({})
-    if count == 0:
-        for ex in EXERCISE_SEED:
-            await db.exercises.insert_one({**ex, "created_at": now_iso()})
-    # seed admin
-    admin_email = os.environ.get("ADMIN_EMAIL", "admin@gymbuddy.app")
+    try:
+        await db.users.create_index("email", unique=True)
+        await db.workout_sessions.create_index([("user_id", 1), ("date", -1)])
+        await db.meal_logs.create_index([("user_id", 1), ("date", -1)])
+        await db.weight_entries.create_index([("user_id", 1), ("date", -1)])
+        # seed exercises
+        count = await db.exercises.count_documents({})
+        if count == 0:
+            for ex in EXERCISE_SEED:
+                await db.exercises.insert_one({**ex, "created_at": now_iso()})
+        # seed admin
+        admin_email = os.environ.get("ADMIN_EMAIL", "admin@gymbuddy.app")
+    except Exception as e:
+        logger.warning("MongoDB unavailable at startup; database-backed routes will fail until it is configured: %s", e)
+        return
     admin_pw = os.environ.get("ADMIN_PASSWORD", "admin123")
     existing = await db.users.find_one({"email": admin_email})
     if not existing:
@@ -285,22 +291,18 @@ async def get_profile(user: dict = Depends(get_current_user)):
     return full
 
 # ===== AI HELPERS =====
-def make_chat(session_id: str, system: str) -> LlmChat:
-    return LlmChat(api_key=EMERGENT_KEY, session_id=session_id, system_message=system).with_model(*LLM_MODEL)
-
 async def ai_call(session_id: str, system: str, user_text: str, image_b64: Optional[str] = None) -> str:
-    chat = make_chat(session_id, system)
+    if not openai_client:
+        raise RuntimeError("OPENAI_API_KEY is not configured")
+    content: List[dict] = [{"type": "input_text", "text": user_text}]
     if image_b64:
-        msg = UserMessage(text=user_text, file_contents=[ImageContent(image_base64=image_b64)])
-    else:
-        msg = UserMessage(text=user_text)
-    out = []
-    async for ev in chat.stream_message(msg):
-        if isinstance(ev, TextDelta):
-            out.append(ev.content)
-        elif isinstance(ev, StreamDone):
-            break
-    return "".join(out)
+        content.append({"type": "input_image", "image_url": f"data:image/jpeg;base64,{image_b64}"})
+    response = await openai_client.responses.create(
+        model=LLM_MODEL,
+        instructions=system,
+        input=[{"role": "user", "content": content}],
+    )
+    return response.output_text
 
 # ===== WORKOUT PLAN GENERATION =====
 async def generate_workout_plan_for_user(user_id: str, profile: dict) -> dict:
@@ -490,8 +492,13 @@ async def recent_session(user: dict = Depends(get_current_user)):
 # ===== PROGRESS: WEIGHT, MEASUREMENTS, PHOTOS =====
 @api.post("/progress/weight")
 async def log_weight(body: WeightEntryIn, user: dict = Depends(get_current_user)):
-    entry = {"id": gen_id(), "user_id": user["id"], "date": now_iso(), **body.model_dump()}
-    await db.weight_entries.insert_one(entry)
+    today = datetime.now(timezone.utc).date().isoformat()
+    existing = await db.weight_entries.find_one({"user_id": user["id"], "date": {"$gte": today}})
+    entry = {**(existing or {"id": gen_id(), "user_id": user["id"]}), "date": now_iso(), **body.model_dump()}
+    if existing:
+        await db.weight_entries.update_one({"id": existing["id"]}, {"$set": entry})
+    else:
+        await db.weight_entries.insert_one(entry)
     entry.pop("_id", None)
     return entry
 
@@ -502,8 +509,13 @@ async def get_weight(user: dict = Depends(get_current_user)):
 
 @api.post("/progress/measurements")
 async def log_measurement(body: MeasurementIn, user: dict = Depends(get_current_user)):
-    entry = {"id": gen_id(), "user_id": user["id"], "date": now_iso(), **body.model_dump()}
-    await db.measurements.insert_one(entry)
+    today = datetime.now(timezone.utc).date().isoformat()
+    existing = await db.measurements.find_one({"user_id": user["id"], "date": {"$gte": today}})
+    entry = {**(existing or {"id": gen_id(), "user_id": user["id"]}), "date": now_iso(), **body.model_dump(exclude_none=True)}
+    if existing:
+        await db.measurements.update_one({"id": existing["id"]}, {"$set": entry})
+    else:
+        await db.measurements.insert_one(entry)
     entry.pop("_id", None)
     return entry
 
@@ -524,7 +536,13 @@ async def upload_photo(file: UploadFile = File(...), user: dict = Depends(get_cu
         "content_type": ctype, "size": result.get("size", len(data)),
         "is_deleted": False, "date": now_iso(),
     }
-    await db.progress_photos.insert_one(record)
+    today = datetime.now(timezone.utc).date().isoformat()
+    existing = await db.progress_photos.find_one({"user_id": user["id"], "date": {"$gte": today}, "is_deleted": False})
+    if existing:
+        record["id"] = existing["id"]
+        await db.progress_photos.update_one({"id": existing["id"]}, {"$set": record})
+    else:
+        await db.progress_photos.insert_one(record)
     record.pop("_id", None)
     return record
 
