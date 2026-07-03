@@ -18,7 +18,7 @@ export default function ExerciseLibrary() {
     );
 
     return (
-        <div className="px-6 pt-10 pb-6">
+        <div className="px-6 pt-10">
             <BackButton />
             <h1 className="brand-heading text-4xl mb-1">Exercise Library</h1>
             <p className="text-zinc-400 text-sm mb-6">{exs.length} exercises with form videos</p>

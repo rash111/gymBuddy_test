@@ -40,7 +40,7 @@ export default function FoodScanner() {
     };
 
     return (
-        <div className="px-6 pt-10 pb-6">
+        <div className="px-6 pt-10">
             <BackButton to="/diet" label="Diet" />
             <span className="text-xs uppercase tracking-[0.3em] text-[#FF5722] font-bold">AI Powered</span>
             <h1 className="brand-heading text-4xl mt-1 mb-1">Food Scanner</h1>

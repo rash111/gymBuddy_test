@@ -7,31 +7,41 @@ import { supabase } from "./supabase";
 // ---- Fallback plan generators (used if Supabase edge functions fail) ----
 function fallbackWorkoutDays() {
     return [
-        { day: "Monday", focus: "Push", exercises: [
-            { exercise_id: "ex_bench", name: "Barbell Bench Press", sets: 4, reps: "8-10", rest_sec: 90 },
-            { exercise_id: "ex_ohp", name: "Overhead Press", sets: 3, reps: "8-10", rest_sec: 90 },
-            { exercise_id: "ex_pushup", name: "Push-Up", sets: 3, reps: "12-15", rest_sec: 60 },
-        ]},
-        { day: "Tuesday", focus: "Pull", exercises: [
-            { exercise_id: "ex_deadlift", name: "Deadlift", sets: 4, reps: "5-6", rest_sec: 120 },
-            { exercise_id: "ex_row", name: "Barbell Row", sets: 4, reps: "8-10", rest_sec: 90 },
-            { exercise_id: "ex_pullup", name: "Pull-Up", sets: 3, reps: "6-10", rest_sec: 90 },
-        ]},
-        { day: "Wednesday", focus: "Legs", exercises: [
-            { exercise_id: "ex_bsquat", name: "Barbell Back Squat", sets: 4, reps: "8-10", rest_sec: 120 },
-            { exercise_id: "ex_legpress", name: "Leg Press", sets: 3, reps: "10-12", rest_sec: 90 },
-            { exercise_id: "ex_lunge", name: "Walking Lunge", sets: 3, reps: "12-15", rest_sec: 60 },
-        ]},
+        {
+            day: "Monday", focus: "Push", exercises: [
+                { exercise_id: "ex_bench", name: "Barbell Bench Press", sets: 4, reps: "8-10", rest_sec: 90 },
+                { exercise_id: "ex_ohp", name: "Overhead Press", sets: 3, reps: "8-10", rest_sec: 90 },
+                { exercise_id: "ex_pushup", name: "Push-Up", sets: 3, reps: "12-15", rest_sec: 60 },
+            ]
+        },
+        {
+            day: "Tuesday", focus: "Pull", exercises: [
+                { exercise_id: "ex_deadlift", name: "Deadlift", sets: 4, reps: "5-6", rest_sec: 120 },
+                { exercise_id: "ex_row", name: "Barbell Row", sets: 4, reps: "8-10", rest_sec: 90 },
+                { exercise_id: "ex_pullup", name: "Pull-Up", sets: 3, reps: "6-10", rest_sec: 90 },
+            ]
+        },
+        {
+            day: "Wednesday", focus: "Legs", exercises: [
+                { exercise_id: "ex_bsquat", name: "Barbell Back Squat", sets: 4, reps: "8-10", rest_sec: 120 },
+                { exercise_id: "ex_legpress", name: "Leg Press", sets: 3, reps: "10-12", rest_sec: 90 },
+                { exercise_id: "ex_lunge", name: "Walking Lunge", sets: 3, reps: "12-15", rest_sec: 60 },
+            ]
+        },
         { day: "Thursday", focus: "Rest", exercises: [] },
-        { day: "Friday", focus: "Full Body", exercises: [
-            { exercise_id: "ex_squat", name: "Bodyweight Squat", sets: 3, reps: "15", rest_sec: 45 },
-            { exercise_id: "ex_pushup", name: "Push-Up", sets: 3, reps: "12", rest_sec: 45 },
-            { exercise_id: "ex_plank", name: "Plank", sets: 3, reps: "45s", rest_sec: 45 },
-        ]},
-        { day: "Saturday", focus: "Core + Cardio", exercises: [
-            { exercise_id: "ex_plank", name: "Plank", sets: 4, reps: "60s", rest_sec: 45 },
-            { exercise_id: "ex_burpee", name: "Burpee", sets: 4, reps: "12", rest_sec: 45 },
-        ]},
+        {
+            day: "Friday", focus: "Full Body", exercises: [
+                { exercise_id: "ex_squat", name: "Bodyweight Squat", sets: 3, reps: "15", rest_sec: 45 },
+                { exercise_id: "ex_pushup", name: "Push-Up", sets: 3, reps: "12", rest_sec: 45 },
+                { exercise_id: "ex_plank", name: "Plank", sets: 3, reps: "45s", rest_sec: 45 },
+            ]
+        },
+        {
+            day: "Saturday", focus: "Core + Cardio", exercises: [
+                { exercise_id: "ex_plank", name: "Plank", sets: 4, reps: "60s", rest_sec: 45 },
+                { exercise_id: "ex_burpee", name: "Burpee", sets: 4, reps: "12", rest_sec: 45 },
+            ]
+        },
         { day: "Sunday", focus: "Rest", exercises: [] },
     ];
 }
@@ -221,6 +231,45 @@ const handlers = {
         if (!data) throw { response: { status: 404 } };
         return data;
     },
+    async refreshPostureGuide(exerciseId) {
+        const user = await requireUser();
+        
+        // Get exercise details
+        const { data: exercise } = await supabase.from("exercises").select("*").eq("id", exerciseId).maybeSingle();
+        if (!exercise) throw { response: { status: 404, data: { detail: "Exercise not found" } } };
+        
+        // Get user profile for injuries (note: these columns may not exist yet)
+        let injuries = [];
+        try {
+            const { data: profile } = await supabase.from("profiles").select("injuries,medical_condition").eq("user_id", user.id).maybeSingle();
+            injuries = profile?.injuries || [];
+        } catch (err) {
+            // Column might not exist yet, continue without injuries
+            console.warn("Could not fetch injuries from profile:", err);
+        }
+        
+        // Call Supabase edge function to generate posture guide
+        const { data, error } = await supabase.functions.invoke("generate-posture-guide", {
+            body: {
+                exerciseName: exercise.name,
+                muscle: exercise.muscle_group || exercise.muscle || "Full Body",
+                equipment: exercise.equipment || "Bodyweight",
+                difficulty: exercise.difficulty || "Beginner",
+                injuries: injuries,
+            },
+        });
+        
+        if (error) {
+            console.error("Edge function error:", error);
+            throw { response: { data: error } };
+        }
+        if (!data?.success) throw { response: { data: { detail: data?.message || "Failed to generate posture guide" } } };
+        
+        // Return the guide (don't try to update exercises table yet in case posture_guide column doesn't exist)
+        return { guide: data.guide };
+    },
+
+
     // ---- WORKOUT SESSIONS ----
     async logSession(body) {
         const user = await requireUser();
@@ -511,6 +560,10 @@ const route = async (method, url, body) => {
     if (u === "/workout-plan/regenerate" && m === "post") return handlers.regenWorkoutPlan();
     if (u === "/workout-plan/reschedule" && m === "post") return handlers.rescheduleWorkoutDay(body);
     if (u === "/exercises" && m === "get") return handlers.getExercises();
+    if (u.match(/^\/exercises\/[^/]+\/posture-guide\/refresh$/) && m === "post") {
+        const id = u.split("/")[2];
+        return handlers.refreshPostureGuide(id);
+    }
     if (u.startsWith("/exercises/") && m === "get") return handlers.getExercise(u.split("/")[2]);
     if (u === "/workout-sessions" && m === "post") return handlers.logSession(body);
     if (u === "/workout-sessions" && m === "get") return handlers.getSessions();
@@ -547,5 +600,5 @@ const api = {
 export default api;
 export const API = "supabase";
 export const getToken = () => null;
-export const setToken = () => {};
-export const clearToken = () => {};
+export const setToken = () => { };
+export const clearToken = () => { };

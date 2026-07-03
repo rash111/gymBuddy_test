@@ -74,7 +74,7 @@ export default function WorkoutSession() {
     const ss = String(elapsed % 60).padStart(2, "0");
 
     return (
-        <div className="px-6 pt-10 pb-32">
+        <div className="px-6 pt-10">
             <BackButton to="/workout" />
             <div className="flex items-center justify-between mb-4">
                 <div>

@@ -139,7 +139,7 @@ export default function WeeklyPlan() {
     };
 
     return (
-        <div className="px-6 pt-10 pb-6">
+        <div className="px-6 pt-10">
             <BackButton to="/workout" />
             <div className="flex justify-between items-start mb-6 gap-3">
                 <div className="min-w-0">

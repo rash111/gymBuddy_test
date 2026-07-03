@@ -12,8 +12,11 @@ const items = [
 
 export default function Layout({ children }) {
     return (
-        <div className="min-h-screen bg-zinc-950 text-white">
-            <main className="max-w-md mx-auto md:max-w-2xl lg:max-w-4xl pb-32 lg:pb-8">
+        <div className="min-h-screen flex flex-col bg-zinc-950 text-white">
+            <main
+                className="flex-1 overflow-y-auto max-w-md mx-auto md:max-w-2xl lg:max-w-4xl w-full"
+                style={{ paddingBottom: "calc(110px + env(safe-area-inset-bottom))" }}
+            >
                 {children}
             </main>
             <nav

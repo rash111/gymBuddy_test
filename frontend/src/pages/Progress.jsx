@@ -98,7 +98,7 @@ export default function Progress() {
     };
 
     return (
-        <div className="px-6 pt-10 pb-40">
+        <div className="px-6 pt-10">
             <BackButton to="/dashboard" />
             <h1 className="brand-heading text-4xl mb-1">Progress</h1>
             <p className="text-zinc-400 text-sm mb-6">Your transformation, by the numbers</p>

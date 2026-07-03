@@ -189,21 +189,21 @@ class CoachMessageIn(BaseModel):
 
 # ===== EXERCISE SEED =====
 EXERCISE_SEED = [
-    {"id": "ex_pushup", "name": "Push-Up", "muscle": "Chest", "equipment": "Bodyweight", "difficulty": "Beginner", "instructions": "Start in plank, lower chest to floor, push back up.", "video_url": "https://www.youtube.com/embed/IODxDxX7oi4"},
-    {"id": "ex_squat", "name": "Bodyweight Squat", "muscle": "Legs", "equipment": "Bodyweight", "difficulty": "Beginner", "instructions": "Feet shoulder-width, lower hips back and down, drive up.", "video_url": "https://www.youtube.com/embed/aclHkVaku9U"},
-    {"id": "ex_bench", "name": "Barbell Bench Press", "muscle": "Chest", "equipment": "Barbell", "difficulty": "Intermediate", "instructions": "Lie on bench, lower bar to chest, press up.", "video_url": "https://www.youtube.com/embed/rT7DgCr-3pg"},
-    {"id": "ex_deadlift", "name": "Deadlift", "muscle": "Back", "equipment": "Barbell", "difficulty": "Advanced", "instructions": "Hinge at hips, grip bar, drive through heels to stand.", "video_url": "https://www.youtube.com/embed/op9kVnSso6Q"},
-    {"id": "ex_bsquat", "name": "Barbell Back Squat", "muscle": "Legs", "equipment": "Barbell", "difficulty": "Intermediate", "instructions": "Bar across upper back, squat down, drive up.", "video_url": "https://www.youtube.com/embed/ultWZbUMPL8"},
-    {"id": "ex_ohp", "name": "Overhead Press", "muscle": "Shoulders", "equipment": "Barbell", "difficulty": "Intermediate", "instructions": "Press bar overhead from shoulders.", "video_url": "https://www.youtube.com/embed/2yjwXTZQDDI"},
-    {"id": "ex_row", "name": "Barbell Row", "muscle": "Back", "equipment": "Barbell", "difficulty": "Intermediate", "instructions": "Hinge forward, row bar to lower chest.", "video_url": "https://www.youtube.com/embed/9efgcAjQe7E"},
-    {"id": "ex_pullup", "name": "Pull-Up", "muscle": "Back", "equipment": "Pull-up Bar", "difficulty": "Intermediate", "instructions": "Grip bar overhand, pull chin above bar.", "video_url": "https://www.youtube.com/embed/eGo4IYlbE5g"},
-    {"id": "ex_lunge", "name": "Walking Lunge", "muscle": "Legs", "equipment": "Bodyweight", "difficulty": "Beginner", "instructions": "Step forward into lunge, alternate legs.", "video_url": "https://www.youtube.com/embed/L8fvypPrzzs"},
-    {"id": "ex_plank", "name": "Plank", "muscle": "Core", "equipment": "Bodyweight", "difficulty": "Beginner", "instructions": "Hold forearm plank, body straight.", "video_url": "https://www.youtube.com/embed/ASdvN_XEl_c"},
-    {"id": "ex_dbcurl", "name": "Dumbbell Bicep Curl", "muscle": "Arms", "equipment": "Dumbbell", "difficulty": "Beginner", "instructions": "Curl dumbbells to shoulders.", "video_url": "https://www.youtube.com/embed/ykJmrZ5v0Oo"},
-    {"id": "ex_dips", "name": "Tricep Dips", "muscle": "Arms", "equipment": "Bodyweight", "difficulty": "Intermediate", "instructions": "Lower body between parallel bars, push up.", "video_url": "https://www.youtube.com/embed/6kALZikXxLc"},
-    {"id": "ex_lat_pd", "name": "Lat Pulldown", "muscle": "Back", "equipment": "Cable", "difficulty": "Beginner", "instructions": "Pull bar to upper chest.", "video_url": "https://www.youtube.com/embed/CAwf7n6Luuc"},
-    {"id": "ex_legpress", "name": "Leg Press", "muscle": "Legs", "equipment": "Machine", "difficulty": "Beginner", "instructions": "Press platform away with legs.", "video_url": "https://www.youtube.com/embed/IZxyjW7MPJQ"},
-    {"id": "ex_burpee", "name": "Burpee", "muscle": "Full Body", "equipment": "Bodyweight", "difficulty": "Intermediate", "instructions": "Squat, plank, push-up, jump.", "video_url": "https://www.youtube.com/embed/auBLPXO8Fww"},
+    {"id": "ex_pushup", "name": "Push-Up", "muscle": "Chest", "equipment": "Bodyweight", "difficulty": "Beginner", "instructions": "Start in plank, lower chest to floor, push back up.", "video_url": "https://www.youtube.com/embed/IODxDxX7oi4", "shorts_url": None, "posture_guide": None},
+    {"id": "ex_squat", "name": "Bodyweight Squat", "muscle": "Legs", "equipment": "Bodyweight", "difficulty": "Beginner", "instructions": "Feet shoulder-width, lower hips back and down, drive up.", "video_url": "https://www.youtube.com/embed/aclHkVaku9U", "shorts_url": None, "posture_guide": None},
+    {"id": "ex_bench", "name": "Barbell Bench Press", "muscle": "Chest", "equipment": "Barbell", "difficulty": "Intermediate", "instructions": "Lie on bench, lower bar to chest, press up.", "video_url": "https://www.youtube.com/embed/rT7DgCr-3pg", "shorts_url": None, "posture_guide": None},
+    {"id": "ex_deadlift", "name": "Deadlift", "muscle": "Back", "equipment": "Barbell", "difficulty": "Advanced", "instructions": "Hinge at hips, grip bar, drive through heels to stand.", "video_url": "https://www.youtube.com/embed/op9kVnSso6Q", "shorts_url": None, "posture_guide": None},
+    {"id": "ex_bsquat", "name": "Barbell Back Squat", "muscle": "Legs", "equipment": "Barbell", "difficulty": "Intermediate", "instructions": "Bar across upper back, squat down, drive up.", "video_url": "https://www.youtube.com/embed/ultWZbUMPL8", "shorts_url": None, "posture_guide": None},
+    {"id": "ex_ohp", "name": "Overhead Press", "muscle": "Shoulders", "equipment": "Barbell", "difficulty": "Intermediate", "instructions": "Press bar overhead from shoulders.", "video_url": "https://www.youtube.com/embed/2yjwXTZQDDI", "shorts_url": None, "posture_guide": None},
+    {"id": "ex_row", "name": "Barbell Row", "muscle": "Back", "equipment": "Barbell", "difficulty": "Intermediate", "instructions": "Hinge forward, row bar to lower chest.", "video_url": "https://www.youtube.com/embed/9efgcAjQe7E", "shorts_url": None, "posture_guide": None},
+    {"id": "ex_pullup", "name": "Pull-Up", "muscle": "Back", "equipment": "Pull-up Bar", "difficulty": "Intermediate", "instructions": "Grip bar overhand, pull chin above bar.", "video_url": "https://www.youtube.com/embed/eGo4IYlbE5g", "shorts_url": None, "posture_guide": None},
+    {"id": "ex_lunge", "name": "Walking Lunge", "muscle": "Legs", "equipment": "Bodyweight", "difficulty": "Beginner", "instructions": "Step forward into lunge, alternate legs.", "video_url": "https://www.youtube.com/embed/L8fvypPrzzs", "shorts_url": None, "posture_guide": None},
+    {"id": "ex_plank", "name": "Plank", "muscle": "Core", "equipment": "Bodyweight", "difficulty": "Beginner", "instructions": "Hold forearm plank, body straight.", "video_url": "https://www.youtube.com/embed/ASdvN_XEl_c", "shorts_url": None, "posture_guide": None},
+    {"id": "ex_dbcurl", "name": "Dumbbell Bicep Curl", "muscle": "Arms", "equipment": "Dumbbell", "difficulty": "Beginner", "instructions": "Curl dumbbells to shoulders.", "video_url": "https://www.youtube.com/embed/ykJmrZ5v0Oo", "shorts_url": None, "posture_guide": None},
+    {"id": "ex_dips", "name": "Tricep Dips", "muscle": "Arms", "equipment": "Bodyweight", "difficulty": "Intermediate", "instructions": "Lower body between parallel bars, push up.", "video_url": "https://www.youtube.com/embed/6kALZikXxLc", "shorts_url": None, "posture_guide": None},
+    {"id": "ex_lat_pd", "name": "Lat Pulldown", "muscle": "Back", "equipment": "Cable", "difficulty": "Beginner", "instructions": "Pull bar to upper chest.", "video_url": "https://www.youtube.com/embed/CAwf7n6Luuc", "shorts_url": None, "posture_guide": None},
+    {"id": "ex_legpress", "name": "Leg Press", "muscle": "Legs", "equipment": "Machine", "difficulty": "Beginner", "instructions": "Press platform away with legs.", "video_url": "https://www.youtube.com/embed/IZxyjW7MPJQ", "shorts_url": None, "posture_guide": None},
+    {"id": "ex_burpee", "name": "Burpee", "muscle": "Full Body", "equipment": "Bodyweight", "difficulty": "Intermediate", "instructions": "Squat, plank, push-up, jump.", "video_url": "https://www.youtube.com/embed/auBLPXO8Fww", "shorts_url": None, "posture_guide": None},
 ]
 
 # ===== STARTUP =====
@@ -451,6 +451,61 @@ async def get_exercise(exercise_id: str):
     if not ex:
         raise HTTPException(404, "Not found")
     return ex
+
+@api.post("/exercises/{exercise_id}/posture-guide/refresh")
+async def refresh_posture_guide(exercise_id: str, user: dict = Depends(get_current_user)):
+    """Regenerate posture guide for an exercise using LLM edge function"""
+    ex = await db.exercises.find_one({"id": exercise_id}, {"_id": 0})
+    if not ex:
+        raise HTTPException(404, "Exercise not found")
+    
+    # Call the Supabase edge function
+    try:
+        supabase_url = os.environ.get("SUPABASE_URL")
+        supabase_key = os.environ.get("SUPABASE_ANON_KEY")
+        
+        if not supabase_url or not supabase_key:
+            raise HTTPException(500, "Supabase credentials not configured")
+        
+        # Get user's injuries from profile (will be stored in user doc)
+        user_injuries = user.get("injuries", [])
+        
+        response = requests.post(
+            f"{supabase_url}/functions/v1/generate-posture-guide",
+            headers={
+                "Authorization": f"Bearer {supabase_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "exerciseName": ex["name"],
+                "muscle": ex["muscle"],
+                "equipment": ex["equipment"],
+                "difficulty": ex["difficulty"],
+                "injuries": user_injuries,
+            },
+            timeout=30,
+        )
+        response.raise_for_status()
+        result = response.json()
+        
+        if not result.get("success"):
+            raise HTTPException(500, f"LLM function failed: {result.get('message')}")
+        
+        guide = result.get("guide")
+        
+        # Update exercise in database
+        await db.exercises.update_one(
+            {"id": exercise_id},
+            {"$set": {"posture_guide": guide}}
+        )
+        
+        return {"success": True, "guide": guide}
+    except requests.RequestException as e:
+        logger.error(f"Failed to call LLM edge function: {e}")
+        raise HTTPException(500, f"Failed to generate posture guide: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error refreshing posture guide: {e}")
+        raise HTTPException(500, f"Error: {str(e)}")
 
 # ===== WORKOUT SESSIONS =====
 @api.post("/workout-sessions")

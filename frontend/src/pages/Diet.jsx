@@ -17,6 +17,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
 // ---- Helpers ----
+
 const toISODateOnly = (d) => {
     const dt = new Date(d);
     const y = dt.getFullYear();
@@ -152,7 +153,7 @@ export default function Diet() {
     const isViewingToday = toISODateOnly(historyDate) === toISODateOnly(new Date());
 
     return (
-        <div className="px-6 pt-10 pb-6">
+        <div className="px-6 pt-10">
             <BackButton to="/dashboard" />
             <div className="flex justify-between items-start mb-4 gap-3">
                 <div className="min-w-0">

@@ -22,7 +22,7 @@ export default function Dashboard() {
     const workoutCompletedToday = todaySessions.length > 0;
 
     return (
-        <div className="px-6 pt-10 pb-6">
+        <div className="px-6 pt-10">
             <div className="flex items-start justify-between mb-2 gap-3">
                 <div className="min-w-0 flex-1">
                     <p className="text-zinc-400 text-sm">Hello,</p>
@@ -80,7 +80,7 @@ export default function Dashboard() {
             </div>
 
             {/* Quick actions */}
-            <h3 className="brand-heading text-xl mt-8 mb-3">Quick Actions</h3>
+            <h3 className="brand-heading text-xl mt-8 mb-3">AI Studio</h3>
             <div className="grid grid-cols-2 gap-3">
                 <ActionTile to="/diet" icon={Apple} label="Diet Plan" />
                 <ActionTile to="/food-scanner" icon={Camera} label="Scan Food" />

@@ -118,7 +118,7 @@ export default function WorkoutSummary() {
     const caloriesEstimate = Math.round(stats.totalMinutes * 70 * 0.1);
 
     return (
-        <div className="px-6 pt-10 pb-8">
+        <div className="px-6 pt-10">
             <BackButton to="/dashboard" />
             <div className="flex justify-center mb-4">
                 <div className="w-20 h-20 rounded-full bg-[#FF5722]/10 border-2 border-[#FF5722] flex items-center justify-center">

@@ -110,7 +110,7 @@ export default function TodayWorkout() {
     };
 
     return (
-        <div className="px-6 pt-10 pb-6">
+        <div className="px-6 pt-10">
             <BackButton to="/dashboard" />
             <Link to="/workout/weekly" className="inline-flex items-center gap-1 text-zinc-400 hover:text-white mb-2 text-sm" data-testid="view-weekly">
                 <Calendar className="w-4 h-4" /> View Weekly Plan
